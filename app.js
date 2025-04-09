@@ -2,6 +2,7 @@ import express from 'express'
 import helmet from 'helmet'
 import cors from 'cors'
 import morgan from 'morgan'
+import { adminRoute } from './routes/admin/adminRoute.js'
 
 const app = express()
 
@@ -35,6 +36,8 @@ app.use(helmet({
       },
     })
   );
+
+ app.use('/api/v1/admin',adminRoute) 
 
  // Health check endpoint
 app.get('/health', (req, res) => {
