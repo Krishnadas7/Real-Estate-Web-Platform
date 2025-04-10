@@ -1,4 +1,4 @@
-import Admin from "../models/admin/adminModel";
+import Admin from "../models/admin/adminModel.js";
 import jwt from 'jsonwebtoken'
 
 export const adminTokenChecking = async (req, res, next) => {
@@ -7,9 +7,10 @@ export const adminTokenChecking = async (req, res, next) => {
       if (req?.headers?.authorization?.startsWith("Bearer")) {
         token = req?.headers?.authorization?.split(" ")[1];
         const decoded = jwt.verify(token, process.env.JWT_ACCESS_TOKEN);
+        console.log(decoded);
+        
         let admin = await Admin.findOne({
-          _id: decoded.id,
-          isDeleted: false,
+          _id: decoded.id
         });
         if (admin) {
           req.id = admin._id;
@@ -20,7 +21,6 @@ export const adminTokenChecking = async (req, res, next) => {
         }
         next();
       } else {
-    
         res.json(401).json({success:false,message:"Unauthorized request token error"})
       }
     } catch (error) {
