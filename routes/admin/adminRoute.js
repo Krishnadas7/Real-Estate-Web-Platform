@@ -9,6 +9,7 @@ import {
      updateClientProfile 
     } from '../../controllers/client/clientController.js'
 import { FileUpload } from '../../middleware/upload.js'
+import { createService, deleteService, getAllServices, updateService } from '../../controllers/service/serviceController.js'
 
 const adminRoute = express.Router()
 
@@ -20,6 +21,10 @@ adminRoute.get('/clients',adminTokenChecking,getAllClients)
 adminRoute.get('/client/:clientId',adminTokenChecking,getClientProfile)
 adminRoute.delete('/client/:clientId',adminTokenChecking,deleteClient)
 adminRoute.post('/updateClient',adminTokenChecking,updateClientProfile)
+adminRoute.post('/createService',adminTokenChecking,FileUpload.single('thumbnail'),createService)
+adminRoute.post('/updateService',adminTokenChecking,updateService)
+adminRoute.delete('/deleteService',adminTokenChecking,deleteService)
+adminRoute.get('/getAllServices',adminTokenChecking,getAllServices)
 
 export  {
     adminRoute
