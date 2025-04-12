@@ -3,6 +3,7 @@ import helmet from 'helmet'
 import cors from 'cors'
 import morgan from 'morgan'
 import { adminRoute } from './routes/admin/adminRoute.js'
+import { clientRoute } from './routes/client/clientRoute.js'
 import path from 'path'
 import { fileURLToPath } from 'url';
 
@@ -49,7 +50,7 @@ app.use(helmet({
   );
 
  app.use('/api/v1/admin',adminRoute) 
-//  app.use('/api/v1/client',clientRoute)
+ app.use('/api/v1/client',clientRoute)
 
  // Health check endpoint
 app.get('/health', (req, res) => {

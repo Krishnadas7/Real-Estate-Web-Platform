@@ -22,11 +22,25 @@ const ClientSchema = new mongoose.Schema(
       mobile: {
         type: Number,
       },
+      address:{
+        place: { type: String, required: true },       // Local area or locality
+        pincode: { type: String, required: true },     // Postal code
+        state: { type: String, required: true },       
+        country: { type: String, required: true },     
+      },
       agentTask: {
         type: String,
       },
       profileUrl: {
         type: String, 
+        default:null
+      },
+      isVerified:{
+        type:Boolean,
+        default:false
+      },
+      password:{
+        type:String
       },
       isActive: {
         type: Boolean,

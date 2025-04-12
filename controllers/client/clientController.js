@@ -1,134 +1,204 @@
+import bcrypt from "bcryptjs";
 import Client from "../../models/clients/clientSchema.js";
-import path from "path";
+import { sendEmail, verifyEmail ,sendEmailForgotPassword} from "../../srevices/nodemailer.js";
+import { trusted } from "mongoose";
 
-export const createClient = async (req, res) => {
+export const sendOtp = async (req, res) => {
   try {
     const {
+      email,
       firstName,
       lastName,
-      email,
       company,
       mobile,
-      agentTask,
+      address,
+      password,
     } = req.body;
 
-    // Check if client already exists by email
-    const existingClient = await Client.findOne({ email });
+    // Check if the client already exists
+    const existingClient = await Client.findOne({ email:email,isVerified:true });
     if (existingClient) {
-      return res.status(400).json({
-        success: false,
-        message: "Client with this email already exists",
-      });
+      return res.status(400).json({ message: "Email already registered." });
     }
 
-    // Construct profileUrl if file uploaded
-    let profileUrl = "";
-if (req.file) {
-  const host = req.protocol + "://" + req.get("host"); // e.g., http://localhost:5000
-  profileUrl = `${host}/uploads/images/${req.file.filename}`;
-}
-
-
-    // Create and save the new client
-    const newClient = new Client({
-      firstName,
-      lastName,
+    // Send verification email
+    const result = await sendEmail(
       email,
-      company,
-      mobile,
-      agentTask,
-      profileUrl,
-    });
+      firstName,
+      "Email Verification - Real Estate"
+    );
 
-    await newClient.save();
+    if (result) {
+      // Hash the password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
 
-    res.status(201).json({
-      success: true,
-      message: "Client created successfully",
-      data: newClient,
-    });
+      // Create a new client
+      const newClient = new Client({
+        firstName,
+        lastName,
+        email,
+        company,
+        mobile,
+        address,
+        password: hashedPassword,
+        isVerified: false,
+      });
 
+      await newClient.save();
+
+      return res.status(200).json({
+        message: "OTP sent and client registered. Please verify your email.",
+      });
+    } else {
+      return res.status(500).json({
+        message: "Failed to send OTP email. Please try again later.",
+      });
+    }
   } catch (error) {
-    console.error("Error in createClient:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while creating client",
+    console.error("Error in sendOtp:", error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again.",
+      error: error.message || error,
     });
   }
 };
 
-export const getAllClients = async (req, res) => {
-    try {
-      const clients = await Client.find().sort({ createdAt: -1 }); // latest first
-      res.status(200).json({ success: true, data: clients,message:"All client lists" });
-    } catch (error) {
-      console.error("Error fetching clients:", error.message);
-      res.status(500).json({ success: false, message: "Server Error" });
-    }
-  };
+export const emailVerification = async (req, res) => {
+  try {
+    const { enteredOTP, email } = req.body;
 
-  export const getClientProfile = async (req, res) => {
-    try {
-      const { clientId } = req.params;
-  
-      const client = await Client.findById(clientId);
-  
-      if (!client) {
-        return res.status(404).json({ success: false, message: "Client not found" });
-      }
-  
-      res.status(200).json({ success: true, data: client,message:"Client Profile data" });
-    } catch (error) {
-      console.error("Error fetching client profile:", error.message);
-      res.status(500).json({ success: false, message: "Server Error" });
-    }
-  }; 
- 
-  export const deleteClient = async (req, res) => {
-    try {
-      const { clientId } = req.params;
-  
-      const deletedClient = await Client.findByIdAndDelete(clientId);
-  
-      if (!deletedClient) {
-        return res.status(404).json({ success: false, message: "Client not found" });
-      }
-  
-      res.status(200).json({ success: true, message: "Client deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting client:", error.message);
-      res.status(500).json({ success: false, message: "Server Error" });
-    }
-  }; 
+    const result = await verifyEmail(enteredOTP, email);
 
-export const updateClientProfile = async (req,res) =>{
-    try {
-        const { clientId, ...updateData } = req.body;
-
-        if (!clientId) {
-            return res.status(400).json({ success: false, message: "Client Id is required" });
-        }
-        if (updateData.email) {
-            const existingClient = await Customer.findOne({
-                email: updateData.email});
-            
-            if (existingClient) {
-                return res.status(400).json({ success: false, message: "Email already exists" });
-            }
-        }   
-            // Find customer and update
+    if (result) {
+      // OTP is correct, update client to set isVerified true
       const client = await Client.findOneAndUpdate(
-        { _id: clientId }, 
-        { $set: updateData }, 
+        { email },
+        { $set: { isVerified: true } },
         { new: true }
-    );
+      );
 
+      if (!client) {
+        return res.status(404).json({ message: "Client not found." });
+      }
+
+      return res.status(200).json({
+        success:true,
+        message: "Email verified successfully.",
+        data:client
+      });
+    } else {
+      return res.status(400).json({success:false, message: "Invalid OTP." });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      success:false,
+      message: "Something went wrong. Please try again.",
+      error: error.message || error,
+    });
+  }
+};
+
+export const clientLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({success:false, message: "Email and password are required." });
+    }
+
+    const client = await Client.findOne({ email:email,isVerified:true });
     if (!client) {
-        return res.status(404).json({ success: false, message: "Client not found" });
+      return res.status(404).json({success:false, message: "Client with this email does not exist." });
     }
 
-    res.status(200).json({ success: true, message: "Client updated successfully", data:client });
-    } catch (error) {
-        
+    // Compare password
+    const isMatch = await bcrypt.compare(password, client.password);
+    if (!isMatch) {
+      return res.status(401).json({success:false, message: "Incorrect password." });
     }
-}  
+
+
+    // Successful login
+    return res.status(200).json({
+      message: "Login successful.",
+      data: {
+        id: client._id,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email,
+        company: client.company,
+        profileUrl: client.profileUrl
+      },
+    });
+
+  } catch (error) {
+    console.error("Login error:", error.message || error);
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message || error,
+    });
+  }
+};
+
+export const forgotPasswordEmail = async (req,res) =>{
+  try {
+    const {email} = req.body
+    console.log(email);
+    
+    const client = await Client.findOne({email})
+    console.log(client);
+    
+    if(!client){
+      return res.status(401).json({
+        success:false,
+        message: "User not exist",
+      });
+    }
+    console.log('dd');
+    
+    const sendOtp = await sendEmailForgotPassword(email)
+    console.log(sendOtp);
+    
+    if(sendOtp){
+       return res.status(200).json({
+        success:true,
+        message:"Please check the provided email"
+       })
+    }else{
+      return res.status(402).json({
+        success:false,
+        message:"User not exist"
+       })
+    }
+  } catch (error) {
+    console.log(error);
+    
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+      error: error.message || error,
+    });
+  }
+}
+
+export const forgotPassword = async (req,res) =>{
+  try {
+    const {email,password} = req.body
+    const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      const client = await Client.findOne({email})
+      if(client){
+        client.password=hashedPassword
+        await client.save()
+      }
+      return res.status(200).json({
+        success:true,
+        message:"Password Changed Successfully"
+      })
+  } catch (error) {
+    return res.status(200).json({
+      success:false,
+      message:"Can't Change Password,Try again later"
+    })
+  }
+}
