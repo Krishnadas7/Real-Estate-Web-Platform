@@ -42,6 +42,11 @@ const ClientSchema = new mongoose.Schema(
       password:{
         type:String
       },
+      role: {
+        type: String,
+        enum: ["client"],
+        default: "client"
+      },
       isActive: {
         type: Boolean,
         default: true

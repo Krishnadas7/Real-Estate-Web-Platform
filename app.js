@@ -6,6 +6,7 @@ import { adminRoute } from './routes/admin/adminRoute.js'
 import { clientRoute } from './routes/client/clientRoute.js'
 import path from 'path'
 import { fileURLToPath } from 'url';
+import { photographerRoute } from './routes/photographer/photoGrapherRoute.js'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +52,7 @@ app.use(helmet({
 
  app.use('/api/v1/admin',adminRoute) 
  app.use('/api/v1/client',clientRoute)
+ app.use('/api/v1/photographer',photographerRoute)
 
  // Health check endpoint
 app.get('/health', (req, res) => {

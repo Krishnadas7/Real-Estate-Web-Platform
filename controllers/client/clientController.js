@@ -3,6 +3,7 @@ import Client from "../../models/clients/clientSchema.js";
 import { sendEmail, verifyEmail ,sendEmailForgotPassword} from "../../srevices/nodemailer.js";
 import { clientBasicSchmema ,otpSchema,clinetLoginSchema} from "../../validations/clientSchma.js";
 import Service from '../../models/services/serviceSchema.js'
+import jwt from 'jsonwebtoken'
 
 export const sendOtp = async (req, res) => {
   try {
@@ -131,7 +132,11 @@ export const clientLogin = async (req, res) => {
       return res.status(401).json({success:false, message: "Incorrect password." });
     }
 
-
+const token = jwt.sign(
+        { id: client._id, role: client.role },
+        process.env.JWT_ACCESS_TOKEN, // Use environment variable for secret key
+        { expiresIn: "7d" }
+      );
     // Successful login
     return res.status(200).json({
       message: "Login successful.",
@@ -141,7 +146,9 @@ export const clientLogin = async (req, res) => {
         lastName: client.lastName,
         email: client.email,
         company: client.company,
-        profileUrl: client.profileUrl
+        profileUrl: client.profileUrl,
+        role:client.role,
+        token:token
       },
     });
 

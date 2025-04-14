@@ -96,14 +96,44 @@ export const clientBasicSchmema = Joi.object({
         'string.pattern.base': 'Mobile number must be exactly 10 digits',
       }),
   
-    address: Joi.string()
-      .min(5)
-      .max(100)
-      .required()
-      .messages({
-        'string.empty': 'Address is required',
-        'string.min': 'Address must be at least 5 characters',
-      }),
+      address: Joi.object({
+        place: Joi.string()
+          .min(2)
+          .max(100)
+          .required()
+          .messages({
+            'string.empty': 'Place is required',
+            'string.min': 'Place must be at least 2 characters',
+          }),
+    
+        pincode: Joi.string()
+          .pattern(/^[0-9]{6}$/)
+          .required()
+          .messages({
+            'string.empty': 'Pincode is required',
+            'string.pattern.base': 'Pincode must be exactly 6 digits',
+          }),
+    
+        state: Joi.string()
+          .min(2)
+          .max(100)
+          .required()
+          .messages({
+            'string.empty': 'State is required',
+          }),
+    
+        country: Joi.string()
+          .min(2)
+          .max(100)
+          .required()
+          .messages({
+            'string.empty': 'Country is required',
+          }),
+      }).required()
+        .messages({
+          'object.base': 'Address must be an object',
+          'any.required': 'Address is required',
+        }),
   
     password: Joi.string()
       .min(6)
