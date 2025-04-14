@@ -2,17 +2,22 @@ import Admin from "../../models/admin/adminModel.js";
 import jwt from 'jsonwebtoken'
 import bcrypt from "bcryptjs";
 import Client from "../../models/clients/clientSchema.js";
+import { adminLoginSchema, adminRegisterSchmea } from "../../validations/adminSchema.js";
+import { clientRegisterSchma } from "../../validations/clientSchma.js";
 
 export const createAdmin = async (req, res) => {
     try {
   
       const { firstName, lastName, email, password } = req.body;
-  
+      const { error } = adminRegisterSchmea.validate(req.body, { allowUnknown: false });
+      if (error) {
+        return res.status(400).json({success:false, error: error.details[0].message });
+      }
       const existingAdmin = await Admin.findOne({ email });
       if (existingAdmin) {
         return res.status(400).json({ success:false,message: "Admin with this email already exists" });
       }
-  
+      
       // Set default password if not provided
       const plainPassword = password || "123456789";
   
@@ -43,7 +48,10 @@ export const loginAdmin = async (req, res) => {
       if (!email || !password) {
         return res.status(400).json({success:false, message: "Email and password are required" });
       }
-  
+      const { error } = adminLoginSchema.validate(req.body, { allowUnknown: false });
+    if (error) {
+      return res.status(400).json({success:false, error: error.details[0].message });
+    }
       // Sanitize email
       const sanitizedEmail = email.trim().toLowerCase();
   
@@ -99,7 +107,11 @@ export const loginAdmin = async (req, res) => {
        mobile,
        agentTask,
      } = req.body;
- 
+   
+     const { error } = clientRegisterSchma.validate(req.body, { allowUnknown: false });
+    if (error) {
+      return res.status(400).json({success:false, error: error.details[0].message });
+    }
      // Check if client already exists by email
      const existingClient = await Client.findOne({ email });
      if (existingClient) {

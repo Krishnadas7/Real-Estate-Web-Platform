@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 import Client from "../../models/clients/clientSchema.js";
 import { sendEmail, verifyEmail ,sendEmailForgotPassword} from "../../srevices/nodemailer.js";
-import { trusted } from "mongoose";
+import { clientBasicSchmema ,otpSchema,clinetLoginSchema} from "../../validations/clientSchma.js";
+import Service from '../../models/services/serviceSchema.js'
 
 export const sendOtp = async (req, res) => {
   try {
@@ -14,7 +15,11 @@ export const sendOtp = async (req, res) => {
       address,
       password,
     } = req.body;
-
+ 
+    const { error } = clientBasicSchmema.validate(req.body, { allowUnknown: false });
+        if (error) {
+          return res.status(400).json({success:false, error: error.details[0].message });
+        }
     // Check if the client already exists
     const existingClient = await Client.findOne({ email:email,isVerified:true });
     if (existingClient) {
@@ -68,6 +73,10 @@ export const emailVerification = async (req, res) => {
   try {
     const { enteredOTP, email } = req.body;
 
+    const { error } = otpSchema.validate(req.body, { allowUnknown: false });
+    if (error) {
+      return res.status(400).json({success:false, error: error.details[0].message });
+    }
     const result = await verifyEmail(enteredOTP, email);
 
     if (result) {
@@ -103,6 +112,10 @@ export const clientLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    const { error } = clinetLoginSchema.validate(req.body, { allowUnknown: false });
+    if (error) {
+      return res.status(400).json({success:false, error: error.details[0].message });
+    }
     if (!email || !password) {
       return res.status(400).json({success:false, message: "Email and password are required." });
     }
@@ -140,7 +153,10 @@ export const clientLogin = async (req, res) => {
     });
   }
 };
-
+// in the client side take the forgottoken from the url 
+// with help of the urlSearchParams and call a api for
+//  validation the token and make a state true shwo the ui
+//  based on that state token validation time is 5 min
 export const forgotPasswordEmail = async (req,res) =>{
   try {
     const {email} = req.body
@@ -202,3 +218,21 @@ export const forgotPassword = async (req,res) =>{
     })
   }
 }
+
+export const listService = async (req, res) => {
+  try {
+    const services = await Service.find();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Services fetched successfully',
+      data: services,
+    });
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong while fetching services',
+    });
+  }
+};
