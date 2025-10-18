@@ -1,29 +1,24 @@
-import Admin from "../models/admin/adminModel.js";
-import jwt from 'jsonwebtoken'
+// middleware/auth.ts
+import jwt from "jsonwebtoken";
+import { User } from "../models/driver/userModel.js";
+console.log(process.env.JWT_SECRET);
 
-export const adminTokenChecking = async (req, res, next) => {
-    try {
-      let token;
-      if (req?.headers?.authorization?.startsWith("Bearer")) {
-        token = req?.headers?.authorization?.split(" ")[1];
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_TOKEN);
-        console.log(decoded);
-        
-        let admin = await Admin.findOne({
-          _id: decoded.id
-        });
-        if (admin) {
-          req.id = admin._id;
-          req.role = admin.role;
-        } else {
-          req.id = null;
-          req.role = null;
-        }
-        next();
-      } else {
-        res.json(401).json({success:false,message:"Unauthorized request token error"})
-      }
-    } catch (error) {
-        res.json(401).json({success:false,message:"Unauthorized token failed"})
-    }
-  };
+
+export const authMiddleware =async (req, res, next) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) return res.status(401).json({success:false, message: "No token provided" });
+  
+   
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET );
+    
+    
+    const user = await User.findOne({_id:decoded.id})
+    req.user = user;
+    next();
+  } catch (err) {
+    // console.log(err);
+    
+    return res.status(403).json({success:false, message: "Invalid token" });
+  }
+};
