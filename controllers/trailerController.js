@@ -1,11 +1,34 @@
 import { Trailer } from "../models/driver/trailerModel.js";
+import { getCoordinatesFromAddress } from "../services/googlemap.js";
 
 // ✅ Create Trailer
 export const createTrailer = async (req, res) => {
   try {
-    // Add company to trailer if user has company
+    const { address, ...otherData } = req.body;
+    
+    // Get coordinates from address if provided
+    let coordinates = { latitude: null, longitude: null };
+    if (address && address.trim()) {
+      coordinates = await getCoordinatesFromAddress(address);
+    }
+    
+    // Prepare trailer data
     const trailerData = {
-      ...req.body,
+      ...otherData,
+      // Set required fields with defaults if not provided
+      trailer: otherData.trailer || otherData.internalId || `TRL-${Date.now()}`,
+      type: otherData.type || 'dry_van',
+      status: otherData.status || 'stopped',
+      operationStatus: otherData.operationStatus || 'available',
+      // Handle attachedVehicle - only set if it's a valid ObjectId or remove if empty
+      attachedVehicle: otherData.attachedVehicle && otherData.attachedVehicle.trim() ? otherData.attachedVehicle : undefined,
+      // Set current location with coordinates
+      currentLocation: {
+        address: address || '',
+        latitude: coordinates.latitude ? coordinates.latitude.toString() : '',
+        longitude: coordinates.longitude ? coordinates.longitude.toString() : '',
+        updatedAt: new Date()
+      },
       ...(req.user.company && { company: req.user.company })
     };
     
@@ -58,9 +81,34 @@ export const getTrailerById = async (req, res) => {
 export const updateTrailer = async (req, res) => {
   try {
     const { id } = req.params;
+    const { address, ...otherData } = req.body;
+    
+    // Get coordinates from address if provided
+    let coordinates = { latitude: null, longitude: null };
+    if (address && address.trim()) {
+      coordinates = await getCoordinatesFromAddress(address);
+    }
+    
+    // Prepare update data
+    const updateData = {
+      ...otherData,
+      // Handle attachedVehicle - only set if it's a valid ObjectId or remove if empty
+      attachedVehicle: otherData.attachedVehicle && otherData.attachedVehicle.trim() ? otherData.attachedVehicle : undefined,
+    };
+    
+    // Update current location if address is provided
+    if (address !== undefined) {
+      updateData.currentLocation = {
+        address: address || '',
+        latitude: coordinates.latitude ? coordinates.latitude.toString() : '',
+        longitude: coordinates.longitude ? coordinates.longitude.toString() : '',
+        updatedAt: new Date()
+      };
+    }
+    
     const updatedTrailer = await Trailer.findByIdAndUpdate(
       id, 
-      req.body, 
+      updateData, 
       {
         new: true,
         runValidators: true,

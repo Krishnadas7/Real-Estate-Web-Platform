@@ -35,7 +35,11 @@ const employeeDocumentSchema = new mongoose.Schema({
     enum: ["valid", "expiring-soon", "expired", "pending", "rejected"], 
     default: "valid" 
   },
- 
+  description: { type: String },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  verifiedAt: { type: Date },
+  rejectionReason: { type: String },
   company: { type: mongoose.Schema.Types.ObjectId, ref: "CompanySettings" }
 }, { 
   timestamps: true 

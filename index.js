@@ -14,10 +14,6 @@ const PORT = config.PORT;
 
 connectDB();
 
-app.get("/api/v1/health", (req, res) => {
-  res.send("health is fine!");
-});
-
 server.listen(PORT, () => {
   console.log(`Server connected on http://localhost:${PORT}`);
 });

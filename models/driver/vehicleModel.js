@@ -16,10 +16,9 @@ const vehicleSchema = new mongoose.Schema(
     },
     vehicleImage: [{ imageUrl: { type: String } }],
     avatar: { type: String },
-      trailer:{type:mongoose.Types.ObjectId,ref:'Trailer'},
-       serialNumber:{type:String},
-       capacity:{type:String},
-       status:{type:String},
+    trailer:{type:mongoose.Types.ObjectId,ref:'Trailer'},
+    serialNumber:{type:String},
+    capacity:{type:String},
     
     currentLocation: {
       address:{type:String},

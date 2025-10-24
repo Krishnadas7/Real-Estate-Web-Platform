@@ -9,10 +9,18 @@ console.log("NODE_ENV:", process.env.NODE_ENV);
 
 // ✅ Allowed file types
 const allowedMimeTypes = {
-  images: ["image/jpeg", "image/png", "image/jpg","image/docx"],
+  images: ["image/jpeg", "image/png", "image/jpg"],
   videos: ["video/mp4", "video/mov", "video/avi"],
-  documents: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] // .pdf & .docx
-
+  documents: [
+    "application/pdf", 
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+    "application/msword", // .doc
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    "application/vnd.ms-excel", // .xls
+    "text/plain", // .txt
+    "application/zip", // .zip
+    "application/x-zip-compressed" // .zip
+  ]
 };
 
 // ✅ File type check
@@ -20,7 +28,7 @@ const checkMimeType = (req, file, cb) => {
   if ([...allowedMimeTypes.images, ...allowedMimeTypes.videos,...allowedMimeTypes.documents].includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Invalid file type. Allowed: JPG, PNG, MP4, MOV, AVI"), false);
+    cb(new Error("Invalid file type. Allowed: JPG, PNG, MP4, MOV, AVI, PDF, DOC, DOCX, XLS, XLSX, TXT, ZIP"), false);
   }
 };
 

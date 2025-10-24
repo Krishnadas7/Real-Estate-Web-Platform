@@ -12,8 +12,8 @@ const payrollSchema = new mongoose.Schema({
   totalSalary: { type: Number, required: true },
   bonus:{type:Number},
   payDate: { type: Date, default: Date.now },
-  fromDate: { type: Date, default: Date.now },
-  toDate: { type: Date, default: Date.now },
+  startDate: { type: Date, default: Date.now },
+  endDate: { type: Date, default: Date.now },
 }, { timestamps: true });
 
 export const Payroll = mongoose.model("Payroll", payrollSchema);

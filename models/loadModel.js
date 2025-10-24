@@ -20,6 +20,11 @@ const loadSchema = new mongoose.Schema(
         ref: 'User',
         default: null
       },
+      vehicle: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Vehicle',
+        default: null
+      },
       adHoc: { type: Number, default: null },
       addMisc: { type: Boolean, default: null },
       dispatchImmediately: { type: Boolean, default: null },
@@ -86,7 +91,7 @@ const loadSchema = new mongoose.Schema(
       enum: ["pending", "active", "completed"],
       default:'pending'
     },
-    assignedAt: { type: Date, default: Date.now },
+    assignedAt: { type: Date, default: null },
   startedAt: { type: Date},
   completedAt: { type: Date},
   liveLocation: {

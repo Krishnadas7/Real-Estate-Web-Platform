@@ -27,6 +27,14 @@ import {
 import { getAllDrivers } from '../controllers/driverController.js'
 import { getAllFaciliators } from '../controllers/user/userController.js'
 import {
+  createIssue,
+  updateIssue,
+  deleteIssue,
+  listIssues,
+  searchIssues,
+  getIssueById
+} from '../controllers/issueController.js'
+import {
   createServiceRate,
   deleteServiceRate,
   getServiceRates,
@@ -477,4 +485,42 @@ dispatcherRoute.delete(
   authMiddleware,
   authorizeRoles('admin', 'superadmin', 'dispatcher'),
   deleteLoad
+)
+
+// Issue management
+dispatcherRoute.post(
+  '/issue',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  createIssue
+)
+dispatcherRoute.get(
+  '/issue',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  listIssues
+)
+dispatcherRoute.get(
+  '/issue/search',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  searchIssues
+)
+dispatcherRoute.get(
+  '/issue/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  getIssueById
+)
+dispatcherRoute.put(
+  '/issue/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  updateIssue
+)
+dispatcherRoute.delete(
+  '/issue/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  deleteIssue
 )

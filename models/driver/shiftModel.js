@@ -31,7 +31,7 @@ const shiftSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "active", "completed"],
+      enum: ["pending", "active", "completed", "scheduled"],
       default: "scheduled",
     },
     notes: {

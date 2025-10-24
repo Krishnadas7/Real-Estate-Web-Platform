@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const issueSchema = new mongoose.Schema({
     reportedBy:{type:String},
     assignedTo:{type:String},
-    driver:{type:mongoose.Types.ObjectId,ref:"Driver"},
+    driver:{type:mongoose.Types.ObjectId,ref:"User"},
     vehicle:{type:mongoose.Types.ObjectId,ref:"Vehicle"},
     issueType:{type:String,enum:['maintanance','operational','accident','compilance']},
     issueCategory:{type:String,enum:['engine','fuel','paper-work','minor-damage']},
@@ -11,6 +11,7 @@ const issueSchema = new mongoose.Schema({
     issueTags:[{type:String}],
     priority:{type:String,enum:['low','medium','high']},
     status:{type:String,enum:['open','in-progress','closed']},
+    address:{type:String},
     cordinates:{longitude:{type:String},latitude:{type:String}}
 }, { timestamps: true });
 

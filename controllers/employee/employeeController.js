@@ -132,6 +132,9 @@ export const getAllEmployees = async (req, res) => {
         // Build filter object
         const filter = {};
         
+        // Exclude admin, superadmin, and driver roles from employee listing
+        filter.role = { $nin: ['admin', 'superadmin', 'driver'] };
+        
         if (search) {
             filter.$or = [
                 { name: { $regex: search, $options: 'i' } },
@@ -142,7 +145,10 @@ export const getAllEmployees = async (req, res) => {
         }
 
         if (role) {
-            filter.role = role;
+            // Only allow filtering by non-excluded roles
+            if (!['admin', 'superadmin', 'driver'].includes(role)) {
+                filter.role = role;
+            }
         }
 
         if (status) {
@@ -486,6 +492,11 @@ export const getEmployeeStats = async (req, res) => {
 
         const stats = await User.aggregate([
             {
+                $match: {
+                    role: { $nin: ['admin', 'superadmin', 'driver'] }
+                }
+            },
+            {
                 $group: {
                     _id: null,
                     totalEmployees: { $sum: 1 },
@@ -501,6 +512,11 @@ export const getEmployeeStats = async (req, res) => {
 
         const roleStats = await User.aggregate([
             {
+                $match: {
+                    role: { $nin: ['admin', 'superadmin', 'driver'] }
+                }
+            },
+            {
                 $group: {
                     _id: '$role',
                     count: { $sum: 1 }
@@ -510,6 +526,11 @@ export const getEmployeeStats = async (req, res) => {
         ]);
 
         const monthlyStats = await User.aggregate([
+            {
+                $match: {
+                    role: { $nin: ['admin', 'superadmin', 'driver'] }
+                }
+            },
             {
                 $group: {
                     _id: {

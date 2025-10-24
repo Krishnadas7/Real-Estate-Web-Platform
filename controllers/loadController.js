@@ -1,4 +1,6 @@
 import { validationResult } from "express-validator";
+import mongoose from "mongoose";
+import { logDriverActivity } from "./driver/driverAcivityController.js";
 import Load from "../models/loadModel.js";
 import { User } from "../models/driver/userModel.js";
 import ActivityLog from "../models/activitylogModel.js";
@@ -223,7 +225,9 @@ export const createLoad = async (req, res) => {
       services: parsedServices,
       notes,
       documents: documentUrls.map((url) => ({ documentUrl: url })),
-      status,
+      status: status || "pending",
+      // Only set assignedAt if a driver is assigned
+      assignedAt: parsedDetails?.driver ? new Date() : null,
     });
 
     await load.save();
@@ -234,7 +238,7 @@ export const createLoad = async (req, res) => {
         driver: driverId,
         vehicle: parsedDetails?.vehicle || null,
         load: load._id,
-        shiftDate: load?.assignedAt, // or you can use load.assignedAt
+        shiftDate: load?.assignedAt || new Date(), // Use assignedAt if available, otherwise current date
         startTime: new Date(), // for now using current, can map from load
         endTime: new Date(Date.now() + 4 * 60 * 60 * 1000), // default 4 hrs later
         status: "scheduled",
@@ -286,6 +290,25 @@ export const updateLoadStatus = async (req, res) => {
 
     await load.save();
 
+    // Log driver activity if driver is assigned
+    if (load.details?.driver && req.user) {
+      try {
+        await logDriverActivity({
+          driverId: load.details.driver,
+          activityType: status === 'active' ? 'load_started' : 'load_completed',
+          location: {
+            address: load.details.pickup?.address || 'Unknown Location',
+            latitude: load.details.pickup?.latitude || '',
+            longitude: load.details.pickup?.longitude || ''
+          },
+          loadId: load._id
+        });
+      } catch (activityError) {
+        console.error('Error logging driver activity:', activityError);
+        // Don't fail the request if activity logging fails
+      }
+    }
+
     res.json({
       success: true,
       message: `Load updated to ${status}`,
@@ -324,7 +347,7 @@ export const activeLoads = async (req, res) => {
         $project: {
           _id:1,
           orderType: "$details.orderType",
-          internalId: "$details.internaleId",
+          internalId: "$details.internalId",
           status: 1,
           driver: 1,
           route:1,
@@ -377,7 +400,7 @@ export const pendingLoads = async (req, res) => {
         $project: {
           _id:1,
           orderType: "$details.orderType",
-          internalId: "$details.internaleId",
+          internalId: "$details.internalId",
           status: 1,
           driver: 1,
           route:1,
@@ -411,7 +434,7 @@ export const startedLoads = async (req, res) => {
       {
         $project: {
           orderType: "$details.orderType",
-          internalId: "$details.internaleId",
+          internalId: "$details.internalId",
           status: 1,
           pickup: "$route.selectPickup",
           dropOff: "$route.selectDropOff"
@@ -453,7 +476,7 @@ export const deliveredLoads = async (req, res) => {
         $project: {
           _id:1,
           orderType: "$details.orderType",
-          internalId: "$details.internaleId",
+          internalId: "$details.internalId",
           status: 1,
           driver: 1,
           route:1,

@@ -1,11 +1,35 @@
 import Issue from "../models/issueModel.js";
+import { getCoordinatesFromAddress } from "../services/googlemap.js";
 
 // ✅ Create Issue
 export const createIssue = async (req, res) => {
   try {
-    const issue = new Issue(req.body);
+    const { address, ...otherData } = req.body;
+    
+    // If address is provided, get coordinates
+    let coordinates = null;
+    if (address) {
+      try {
+        const coords = await getCoordinatesFromAddress(address);
+        coordinates = {
+          longitude: coords.longitude.toString(),
+          latitude: coords.latitude.toString()
+        };
+      } catch (coordError) {
+        console.error('Error getting coordinates:', coordError);
+        // Continue without coordinates if geocoding fails
+      }
+    }
+
+    const issueData = {
+      ...otherData,
+      address,
+      cordinates: coordinates
+    };
+
+    const issue = new Issue(issueData);
     await issue.save();
-    return res.status(201).json({ message: "Issue created successfully", issue });
+    return res.status(201).json({ success: true, message: "Issue created successfully", issue });
   } catch (error) {
     return res.status(500).json({ message: "Error creating issue", error: error.message });
   }
@@ -15,12 +39,33 @@ export const createIssue = async (req, res) => {
 export const updateIssue = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateFields = req.body;
+    const { address, ...otherFields } = req.body;
+
+    // If address is provided, get coordinates
+    let coordinates = null;
+    if (address) {
+      try {
+        const coords = await getCoordinatesFromAddress(address);
+        coordinates = {
+          longitude: coords.longitude.toString(),
+          latitude: coords.latitude.toString()
+        };
+      } catch (coordError) {
+        console.error('Error getting coordinates:', coordError);
+        // Continue without coordinates if geocoding fails
+      }
+    }
+
+    const updateFields = {
+      ...otherFields,
+      address,
+      cordinates: coordinates
+    };
 
     const updatedIssue = await Issue.findByIdAndUpdate(id, updateFields, { new: true });
     if (!updatedIssue) return res.status(404).json({ message: "Issue not found" });
 
-    return res.json({ message: "Issue updated successfully", issue: updatedIssue });
+    return res.json({ success: true, message: "Issue updated successfully", issue: updatedIssue });
   } catch (error) {
     return res.status(500).json({ message: "Error updating issue", error: error.message });
   }
@@ -33,7 +78,7 @@ export const deleteIssue = async (req, res) => {
     const deleted = await Issue.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ message: "Issue not found" });
 
-    return res.json({ message: "Issue deleted successfully" });
+    return res.json({ success: true, message: "Issue deleted successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Error deleting issue", error: error.message });
   }
@@ -52,6 +97,7 @@ export const listIssues = async (req, res) => {
     const count = await Issue.countDocuments();
 
     return res.json({
+      success: true,
       total: count,
       page: parseInt(page),
       pages: Math.ceil(count / limit),
@@ -59,6 +105,22 @@ export const listIssues = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Error fetching issues", error: error.message });
+  }
+};
+
+// ✅ Get Issue by ID
+export const getIssueById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const issue = await Issue.findById(id)
+      .populate("driver")
+      .populate("vehicle");
+    
+    if (!issue) return res.status(404).json({ message: "Issue not found" });
+
+    return res.json({ success: true, issue });
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching issue", error: error.message });
   }
 };
 
@@ -83,7 +145,7 @@ export const searchIssues = async (req, res) => {
 
     const issues = await Issue.find(query).populate("driver").populate("vehicle");
 
-    return res.json({ total: issues.length, issues });
+    return res.json({ success: true, total: issues.length, issues });
   } catch (error) {
     return res.status(500).json({ message: "Error searching issues", error: error.message });
   }

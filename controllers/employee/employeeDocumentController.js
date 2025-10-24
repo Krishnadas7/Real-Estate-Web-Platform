@@ -43,12 +43,20 @@ export const createEmployeeDocument = async (req, res) => {
             console.log('📁 File uploaded successfully:', fileMetadata);
         }
 
-        // Check if employee exists
+        // Check if employee exists and belongs to the same company
         const employeeExists = await User.findById(employee);
         if (!employeeExists) {
             return res.status(404).json({
                 success: false,
                 message: "Employee not found"
+            });
+        }
+
+        // Check if employee belongs to the same company
+        if (req.user.company && employeeExists.company && employeeExists.company.toString() !== req.user.company.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only create documents for employees in your company"
             });
         }
 
@@ -128,6 +136,8 @@ export const getAllEmployeeDocuments = async (req, res) => {
         // Build employee filter object
         const employeeFilters = {};
         if (req.user.company) employeeFilters.company = req.user.company;
+        // Exclude admin, superadmin, and driver roles
+        employeeFilters.role = { $nin: ['admin', 'superadmin', 'driver'] };
 
         // Calculate pagination
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -142,6 +152,8 @@ export const getAllEmployeeDocuments = async (req, res) => {
             .sort(sort)
             .skip(skip)
             .limit(parseInt(limit));
+        
+        console.log('Found employees:', employees.length);
 
         // If specific employee is requested, filter by that employee
         if (employee) {
@@ -176,6 +188,8 @@ export const getAllEmployeeDocuments = async (req, res) => {
                 .populate('uploadedBy', 'name email')
                 .populate('verifiedBy', 'name email')
                 .sort({ createdAt: -1 });
+
+                console.log(`Employee ${emp.name} (${emp._id}) has ${documents.length} documents`);
 
                 return {
                     employee: {
@@ -600,6 +614,20 @@ export const getEmployeeDocumentStats = async (req, res) => {
         const stats = await EmployeeDocument.aggregate([
             { $match: companyFilter },
             {
+                $lookup: {
+                    from: 'users',
+                    localField: 'employee',
+                    foreignField: '_id',
+                    as: 'employeeData'
+                }
+            },
+            { $unwind: '$employeeData' },
+            {
+                $match: {
+                    'employeeData.role': { $nin: ['admin', 'superadmin', 'driver'] }
+                }
+            },
+            {
                 $group: {
                     _id: null,
                     totalDocuments: { $sum: 1 },
@@ -626,6 +654,20 @@ export const getEmployeeDocumentStats = async (req, res) => {
         const documentTypes = await EmployeeDocument.aggregate([
             { $match: companyFilter },
             {
+                $lookup: {
+                    from: 'users',
+                    localField: 'employee',
+                    foreignField: '_id',
+                    as: 'employeeData'
+                }
+            },
+            { $unwind: '$employeeData' },
+            {
+                $match: {
+                    'employeeData.role': { $nin: ['admin', 'superadmin', 'driver'] }
+                }
+            },
+            {
                 $group: {
                     _id: "$documentType",
                     count: { $sum: 1 }
@@ -638,14 +680,31 @@ export const getEmployeeDocumentStats = async (req, res) => {
         const thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-        const expiringCount = await EmployeeDocument.countDocuments({
-            ...companyFilter,
-            expiryDate: {
-                $gte: new Date(),
-                $lte: thirtyDaysFromNow
+        const expiringCountResult = await EmployeeDocument.aggregate([
+            { $match: companyFilter },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'employee',
+                    foreignField: '_id',
+                    as: 'employeeData'
+                }
             },
-            status: { $ne: 'expired' }
-        });
+            { $unwind: '$employeeData' },
+            {
+                $match: {
+                    'employeeData.role': { $nin: ['admin', 'superadmin', 'driver'] },
+                    expiryDate: {
+                        $gte: new Date(),
+                        $lte: thirtyDaysFromNow
+                    },
+                    status: { $ne: 'expired' }
+                }
+            },
+            { $count: 'expiringIn30Days' }
+        ]);
+
+        const expiringCount = expiringCountResult.length > 0 ? expiringCountResult[0].expiringIn30Days : 0;
 
         const result = {
             ...stats[0],

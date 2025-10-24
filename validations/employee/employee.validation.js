@@ -29,13 +29,17 @@ export const createEmployeeValidation = [
 
     body('password')
         .optional()
-        .isLength({ min: 6 })
-        .withMessage('Password must be at least 6 characters long'),
+        .custom((value) => {
+            if (value && value.length < 6) {
+                throw new Error('Password must be at least 6 characters long');
+            }
+            return true;
+        }),
 
     body('role')
         .notEmpty()
         .withMessage('Role is required')
-        .isIn(['admin', 'superadmin', 'driver', 'dispatcher', 'hr', 'contact', 'customer', 'reporter'])
+        .isIn(['employee', 'dispatcher', 'hr', 'contact', 'customer', 'reporter', 'fleetmanager', 'safetyofficer', 'operationsstaff', 'maintenancecrew', 'administrative'])
         .withMessage('Invalid role selected'),
 
     body('policies')
@@ -112,12 +116,16 @@ export const updateEmployeeValidation = [
 
     body('password')
         .optional()
-        .isLength({ min: 6 })
-        .withMessage('Password must be at least 6 characters long'),
+        .custom((value) => {
+            if (value && value.length < 6) {
+                throw new Error('Password must be at least 6 characters long');
+            }
+            return true;
+        }),
 
     body('role')
         .optional()
-        .isIn(['admin', 'superadmin', 'driver', 'dispatcher', 'hr', 'contact', 'customer', 'reporter'])
+        .isIn(['employee', 'dispatcher', 'hr', 'contact', 'customer', 'reporter', 'fleetmanager', 'safetyofficer', 'operationsstaff', 'maintenancecrew', 'administrative'])
         .withMessage('Invalid role selected'),
 
     body('policies')

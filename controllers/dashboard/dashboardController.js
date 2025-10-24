@@ -7,6 +7,7 @@ import moment from "moment";
 import HosLog from "../../models/driver/hosManagement.js";
 import VehicleDocuments from "../../models/driver/vehicleDocumentsModel.js";
 import { DriverDocument } from "../../models/driver/driverDocumentModel.js";
+import { Trailer } from "../../models/driver/trailerModel.js";
 
 
 export async function getPendingMaintenanceCount(req, res) {
@@ -222,11 +223,22 @@ export const getRecentAlerts = async (req, res) => {
 
 export const getVehicleAndWorkOrderStats = async (req, res) => {
   try {
+    const companyFilter = req.user.company ? { company: req.user.company } : {};
+
     // Count total vehicles
-    const totalVehicles = await Vehicle.countDocuments();
+    const totalVehicles = await Vehicle.countDocuments(companyFilter);
 
     // Count active (in-progress) work orders
     const activeWorkOrders = await WorkOrder.countDocuments({ status: "inprogress" });
+
+    // Count total trailers
+    const totalTrailers = await Trailer.countDocuments(companyFilter);
+
+    // Count trailers by status
+    const trailersInTransit = await Trailer.countDocuments({ ...companyFilter, operationStatus: 'in_transit' });
+    const trailersAvailable = await Trailer.countDocuments({ ...companyFilter, operationStatus: 'available' });
+    const trailersMaintenance = await Trailer.countDocuments({ ...companyFilter, operationStatus: 'maintenance' });
+    const trailersAttached = await Trailer.countDocuments({ ...companyFilter, isAttached: true });
 
     // Return combined data
     return res.status(200).json({
@@ -235,6 +247,12 @@ export const getVehicleAndWorkOrderStats = async (req, res) => {
       data: {
         totalVehicles,
         activeWorkOrders,
+        totalTrailers,
+        trailersInTransit,
+        trailersAvailable,
+        trailersMaintenance,
+        trailersAttached,
+        trailersUnattached: totalTrailers - trailersAttached
       },
     });
   } catch (error) {

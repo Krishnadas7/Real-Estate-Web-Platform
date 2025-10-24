@@ -11,7 +11,6 @@ const userSchema = new mongoose.Schema({
         'fleetmanager','safetyofficer','operationsstaff','maintenancecrew','administrative'
       ]},
       policies:{type:String},
-      country:{type:String},
       state:{type:String},
       city:{type:String},
       joinDate:{type:Date,required:true},

@@ -54,6 +54,10 @@ app.use(hpp()); // Prevent HTTP Parameter Pollution
 // app.use(xss()); // ❌ Deprecated, do not use
 // app.use(mongoSanitize()); // Prevent NoSQL injection
 
+app.get("/api/v1/health", (req, res) => {
+  res.send("health is fine!");
+});
+
 app.post("/api/v1/login", async (req, res) => {
   try {
     const { email, password } = req.body;

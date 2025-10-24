@@ -3,7 +3,7 @@ import { Payroll } from "../../models/hr/payrollSchemaModel.js";
 
 export const createPayroll = async (req, res) => {
   try {
-    const { userId, baseSalary, bonus = 0, deductions = 0,payDate,fromDate,toDate } = req.body;
+    const { userId, baseSalary, bonus = 0, deductions = 0, payDate, startDate, endDate } = req.body;
 
     // validation
     if (!userId || baseSalary == null) {
@@ -35,9 +35,9 @@ export const createPayroll = async (req, res) => {
       bonus: extra,
       deductions: deduct,
       totalSalary,
-      payDate:payDate,
-      fromDate,
-      toDate
+      payDate: payDate,
+      startDate: startDate,
+      endDate: endDate
     });
 
     await payroll.save();
@@ -67,7 +67,7 @@ export const getPayrolls = async (req, res) => {
 export const updatePayroll = async (req, res) => {
   try {
     const { id } = req.params;
-    const { baseSalary, bonus, deductions, payDate, fromDate, toDate } = req.body;
+    const { baseSalary, bonus, deductions, payDate, startDate, endDate } = req.body;
 
     const payroll = await Payroll.findById(id);
     if (!payroll) {
@@ -79,8 +79,8 @@ export const updatePayroll = async (req, res) => {
     if (bonus !== undefined) payroll.bonus = Number(bonus);
     if (deductions !== undefined) payroll.deductions = Number(deductions);
     if (payDate) payroll.payDate = payDate;
-    if (fromDate) payroll.fromDate = fromDate;
-    if (toDate) payroll.toDate = toDate;
+    if (startDate) payroll.startDate = startDate;
+    if (endDate) payroll.endDate = endDate;
 
     // Recalculate total salary
     payroll.totalSalary = payroll.baseSalary + payroll.bonus - payroll.deductions;

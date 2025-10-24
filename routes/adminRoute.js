@@ -1,6 +1,13 @@
 import express from 'express'
 import { createAdmin } from '../controllers/adminManageController.js'
-import { loginAdmin } from '../controllers/adminController.js'
+import { 
+  loginAdmin, 
+  getDriverStats, 
+  getLoadStats, 
+  getSafetyStats, 
+  getRecentDriverActivities 
+} from '../controllers/adminController.js'
+import { getDriverActivities } from '../controllers/driver/driverAcivityController.js'
 import { authAdmin } from '../middleware/authAdmin.js'
 import { FileUpload } from '../middleware/upload.js'
 import {
@@ -390,3 +397,10 @@ adminRoute.delete("/vehicle-service/:id",authMiddleware,
 // LIST SERVICES WITH FILTERS
 adminRoute.get("/vehicle-service",authMiddleware,
   authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'), listVehicleServices);
+
+// Driver Dashboard Routes
+adminRoute.get("/driver/stats", authMiddleware, authorizeRoles('admin', 'superadmin'), getDriverStats);
+adminRoute.get("/load/stats", authMiddleware, authorizeRoles('admin', 'superadmin'), getLoadStats);
+adminRoute.get("/driver/safety-stats", authMiddleware, authorizeRoles('admin', 'superadmin'), getSafetyStats);
+adminRoute.get("/activity-log/recent", authMiddleware, authorizeRoles('admin', 'superadmin'), getRecentDriverActivities);
+adminRoute.get("/driver-activity", authMiddleware, authorizeRoles('admin', 'superadmin'), getDriverActivities);

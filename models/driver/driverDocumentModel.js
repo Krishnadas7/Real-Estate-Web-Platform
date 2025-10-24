@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const driverDocumentSchema = new mongoose.Schema({
-  driver: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: true },
+  driver: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   documentType: {
     type: String,
     enum: [
