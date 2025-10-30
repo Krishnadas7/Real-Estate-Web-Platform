@@ -7,6 +7,10 @@ export const loadValidation = [
     .optional()
     .isString()
     .withMessage("Order type must be a string"),
+  body("details.driver")
+    .optional()
+    .isMongoId()
+    .withMessage("Driver must be a valid MongoDB ObjectId"),
   body("details.requiredProof")
     .optional()
     .isIn(["scan", "signature", "photo"])

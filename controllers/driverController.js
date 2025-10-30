@@ -86,7 +86,7 @@ export const registerDriver = async (req, res) => {
         profileImageUrl = req.file.location;
       } else {
         // From local storage
-        profileImageUrl = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        profileImageUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
 
@@ -247,7 +247,7 @@ export const getDriverById = async (req, res) => {
 // ✅ Create driver
 export const createDriver = async (req, res) => {
   try {
-    const { name,phone,email,country,password,role,policies} = req.body
+    const { name,phone,email,country,password,role,policies,internalId} = req.body
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
@@ -256,6 +256,22 @@ export const createDriver = async (req, res) => {
      if(driverExist){
       return res.json({success:false,message:"driver already exist with email"})
      }
+
+     // Check if internalId is provided, if not generate one
+     let finalInternalId = internalId;
+     if (!finalInternalId) {
+       // Generate internalId based on role and timestamp
+       const timestamp = Date.now().toString().slice(-6);
+       const rolePrefix = role === 'driver' ? 'DRV' : 'EMP';
+       finalInternalId = `${rolePrefix}-${timestamp}`;
+     }
+
+     // Check if internalId already exists
+     const existingInternalId = await User.findOne({internalId: finalInternalId});
+     if (existingInternalId) {
+       return res.json({success:false,message:"Internal ID already exists"});
+     }
+
     // hash password before saving
     const hashedPassword = await hashPassword(password);
      
@@ -267,7 +283,7 @@ export const createDriver = async (req, res) => {
         profileImageUrl = req.file.location;
       } else {
         // From local storage
-        profileImageUrl = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        profileImageUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
     const driver = new User({
@@ -279,15 +295,18 @@ export const createDriver = async (req, res) => {
       role:role,
       policies:policies,
       profileImageUrl:profileImageUrl,
-      
+      internalId: finalInternalId,
+      joinDate: new Date(),
+      status: 'active'
     });
 
     await driver.save();
 
     res
       .status(201)
-      .json({ success: true, message: "Driver created successfully", driver });
+      .json({ success: true, message: "Driver created successfully", data: driver });
   } catch (error) {
+    console.error('Error creating driver:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -308,7 +327,7 @@ export const updateDriver = async (req, res) => {
         profileImageUrl = req.file.location;
       } else {
         // From local storage
-        profileImageUrl = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        profileImageUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
     req.body.profileImageUrl = profileImageUrl
@@ -347,14 +366,21 @@ export const updateDriverStatus = async (req, res) => {
 // ✅ Get all drivers
 export const getAllDrivers = async (req, res) => {
   try {
-    const drivers = await User.find({role:"driver"});
+    console.log('🔄 Fetching all drivers');
+    
+    const drivers = await User.find({role:"driver"})
+      .select('name email phone country role status internalId joinDate profileImageUrl policies')
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${drivers.length} drivers`);
 
     res.json({
       success: true,
       count: drivers.length,
-      data:drivers,
+      data: drivers,
     });
   } catch (error) {
+    console.error('❌ Error fetching drivers:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

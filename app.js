@@ -4,8 +4,13 @@ import cors from "cors";
 import hpp from "hpp";
 import bcrypt from "bcryptjs";
 import jwt from 'jsonwebtoken'
+import path from "path";
 import { User } from "./models/driver/userModel.js";
+import { updateDocumentStatuses } from "./controllers/employee/employeeDocumentController.js";
+import { updateDriverDocumentStatuses } from "./controllers/driverDocumentController.js";
 import { syncVehiclesFromGeotab } from "./jobs/vehicleSync.js";
+import { runDocumentStatusUpdateJob } from "./jobs/documentStatusUpdate.js";
+import { runDriverDocumentStatusUpdateJob } from "./jobs/driverDocumentStatusUpdate.js";
 // import xss from "xss-clean";
 // import mongoSanitize from "express-mongo-sanitize";
 import morgan from "morgan";
@@ -17,6 +22,7 @@ import { dispatcherRoute } from "./routes/dispatcherRoute.js";
 import employeeRoute from "./routes/employeeRoute.js";
 import employeeDocumentRoute from "./routes/employeeDocumentRoute.js";
 import { trailerTrackingRoute } from "./routes/trailerTrackingRoute.js";
+import companyDocumentRoute from "./routes/companyDocumentRoute.js";
 import { swaggerUi, specs } from "./swagger/swagger.js";
 import { fileUploadErrorHandler } from "./middleware/fileUploadErrorHandler.js";
 import { createPaymentSession } from "./controllers/user/paymentController.js";
@@ -43,13 +49,48 @@ app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 app.use(
   helmet({
     contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
-    crossOriginEmbedderPolicy: process.env.NODE_ENV === "production",
-    crossOriginOpenerPolicy: process.env.NODE_ENV === "production",
+    crossOriginEmbedderPolicy: false, // Disable for development
+    crossOriginOpenerPolicy: false, // Disable for development
+    crossOriginResourcePolicy: false, // Disable for development
   })
 );
-app.use("/uploads", express.static("uploads"));
+// Configure CORS with proper headers for static files
+app.use(cors({
+  origin: true, // Allow all origins in development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar']
+}));
 
-app.use(cors());
+// Serve static files with comprehensive CORS headers
+app.use("/uploads", (req, res, next) => {
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Set Cross-Origin Resource Policy headers
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  res.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+
+  // Allow embedding uploads in iframes during development (for doc viewers)
+  if (process.env.NODE_ENV !== 'production') {
+    res.header('X-Frame-Options', 'ALLOWALL');
+    // Modern replacement for X-Frame-Options; allow any ancestor in dev
+    res.header('Content-Security-Policy', "frame-ancestors *");
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  
+  next();
+}, express.static("uploads"));
 app.use(hpp()); // Prevent HTTP Parameter Pollution
 // app.use(xss()); // ❌ Deprecated, do not use
 // app.use(mongoSanitize()); // Prevent NoSQL injection
@@ -58,39 +99,65 @@ app.get("/api/v1/health", (req, res) => {
   res.send("health is fine!");
 });
 
+// Test route for image access
+app.get("/api/v1/test-image/:filename", (req, res) => {
+  const filename = req.params.filename;
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.sendFile(path.join(process.cwd(), 'uploads', 'images', filename));
+});
+
 app.post("/api/v1/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-  // Search user in all collections OR in one "users" collection with role field
-  const user = await User.findOne({ email }); // Assuming all users in one collection
-  if (!user) return res.status(404).json({success:false, message: "User not found" });
+    // Search user in all collections OR in one "users" collection with role field
+    const user = await User.findOne({ email }); // Assuming all users in one collection
+    if (!user) return res.status(404).json({success:false, message: "User not found" });
 
-  const isMatch = bcrypt.compare(password, user.password);
-  if (!isMatch) return res.status(401).json({success:false, message: "Incorrect password" });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({success:false, message: "Incorrect password" });
 
-  // Generate JWT
-  const token = jwt.sign(
-    { id: user._id, role: user.role }, 
-    process.env.JWT_SECRET, 
-    { expiresIn: "12d" }
-  );
-
-  res.json({
-    success:true,
-    message:"login success",
-    token:token,
-    data: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role
+    // Update document statuses for admin/hr/superadmin users
+    if (['admin', 'hr', 'superadmin'].includes(user.role)) {
+        try {
+            console.log('🔄 Updating employee document statuses on login...');
+            await updateDocumentStatuses();
+        } catch (error) {
+            console.error('❌ Error updating employee document statuses on login:', error);
+            // Don't fail login if document update fails
+        }
+        
+        try {
+            console.log('🔄 Updating driver document statuses on login...');
+            await updateDriverDocumentStatuses();
+        } catch (error) {
+            console.error('❌ Error updating driver document statuses on login:', error);
+            // Don't fail login if document update fails
+        }
     }
-  });
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: "12d" }
+    );
+
+    res.json({
+      success:true,
+      message:"login success",
+      token:token,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
   } catch (error) {
     res.json({success:false,message:error.message})
   }
-  
 });
 
 // ✅ Swagger Documentation
@@ -109,6 +176,46 @@ app.use('/api/v1/hr',hrRoute)
 app.use('/api/v1/employee', employeeRoute)
 app.use('/api/v1/employee-documents', employeeDocumentRoute)
 app.use('/api/v1/trailer-tracking', trailerTrackingRoute)
+app.use('/api/v1/company-documents', companyDocumentRoute)
+
+// ✅ Public routes for customers (no authentication required)
+app.get('/api/public/invoice/:id', async (req, res) => {
+  try {
+    console.log('🔍 Public invoice route called with ID:', req.params.id);
+    const { Invoice } = await import('./models/hr/invoiceModel.js');
+    
+    console.log('📡 Searching for invoice in database...');
+    const invoice = await Invoice.findById(req.params.id);
+    console.log('📡 Database query result:', invoice ? 'Found' : 'Not found');
+    
+    if (!invoice) {
+      console.log('❌ Invoice not found in database');
+      return res.status(404).json({ success: false, message: "Invoice not found" });
+    }
+    
+    console.log('✅ Invoice found, returning data');
+    res.json({ success: true, data: invoice });
+  } catch (error) {
+    console.error('❌ Error in public invoice route:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Test endpoint to verify backend is working
+app.get('/api/public/test', (req, res) => {
+  res.json({ success: true, message: "Backend is working!" });
+});
+
+// Test webhook endpoint
+app.post('/api/v1/webhook-test', (req, res) => {
+  console.log('🔍 Webhook test endpoint called');
+  console.log('📡 Request body:', req.body);
+  console.log('📡 Request headers:', req.headers);
+  res.json({ success: true, message: "Webhook test successful!" });
+});
+
+// ✅ Webhook routes (must be before 404 handler)
+app.post("/api/v1/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
 
 // ✅ Logging
 app.use(
@@ -136,9 +243,11 @@ app.use((err, req, res, next) => {
     message: "Something went wrong, please try again later",
   });
 });
-app.post("/api/v1/pay", createPaymentSession);
-app.post("/api/v1/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
 // every 30s is safer than 5s (to avoid Geotab API rate limits)
 // setInterval(syncVehiclesFromGeotab, 30_000);
+
+// ✅ Schedule document status update jobs
+runDocumentStatusUpdateJob();
+runDriverDocumentStatusUpdateJob();
 
 

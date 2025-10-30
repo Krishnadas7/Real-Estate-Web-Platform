@@ -12,7 +12,7 @@ export const updateExpense = async (req, res) => {
       if (process.env.NODE_ENV === "production") {
         updateData.receiptUrl = req.file.location;
       } else {
-        updateData.receiptUrl = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        updateData.receiptUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
 
@@ -64,7 +64,7 @@ export const createExpense = async (req, res) => {
         fileUrl = req.file.location;
       } else {
         // Local storage
-        fileUrl = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        fileUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
     req.body.receiptUrl = fileUrl

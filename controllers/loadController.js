@@ -505,14 +505,16 @@ export const deliveredLoads = async (req, res) => {
 export const getAllLoads = async (req, res) => {
   try {
     const loads = await Load.find()
-      .populate("details.customer", "name") // only fetch customer name
+      .populate("details.customer", "name email") // fetch customer name and email
       .populate("details.driver", "name")   // only fetch driver name
-      .populate("route.wayPoints.customer", "name"); // if waypoints need customer name
+      .populate("route.wayPoints.customer", "name email"); // if waypoints need customer name and email
 
     const formattedLoads = loads.map((load) => ({
+      _id: load._id,  // Add the _id field for frontend compatibility
       orderId: load._id,
       driverName: load.details?.driver?.name || null,
       customerName: load.details?.customer?.name || null,
+      customerEmail: load.details?.customer?.email || null,
       route: load.route || [],
       status: load.status || null,
       notes: load.notes || null,
@@ -553,23 +555,32 @@ export const getLoadById = async (req, res) => {
 // ✅ Update Load
 export const updateLoad = async (req, res) => {
   try {
+    console.log('🔍 updateLoad called');
+    console.log('🔍 req.params.id:', req.params.id);
+    console.log('🔍 req.body:', req.body);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
+    console.log('🔍 Updating load with ID:', req.params.id);
     const load = await Load.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
 
     if (!load) {
+      console.log('❌ Load not found with ID:', req.params.id);
       return res
         .status(404)
         .json({ success: false, message: "Load not found" });
     }
 
+    console.log('✅ Load updated successfully:', load._id);
     res.json({ success: true, message: "Load updated successfully", load });
   } catch (error) {
+    console.error('❌ updateLoad error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

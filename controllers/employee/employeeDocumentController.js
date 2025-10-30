@@ -523,11 +523,64 @@ export const getDocumentsByEmployee = async (req, res) => {
     }
 };
 
+// ✅ UPDATE DOCUMENT STATUSES BASED ON EXPIRY
+export const updateDocumentStatuses = async () => {
+    try {
+        console.log('🔄 Updating document statuses based on expiry dates...');
+        
+        const today = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+        // Update documents that are expiring soon (within 30 days)
+        const expiringSoonResult = await EmployeeDocument.updateMany(
+            {
+                expiryDate: {
+                    $gte: today,
+                    $lte: thirtyDaysFromNow
+                },
+                status: { $nin: ['expired', 'expiring-soon'] }
+            },
+            { 
+                status: 'expiring-soon',
+                updatedAt: new Date()
+            }
+        );
+
+        // Update documents that have expired
+        const expiredResult = await EmployeeDocument.updateMany(
+            {
+                expiryDate: { $lt: today },
+                status: { $ne: 'expired' }
+            },
+            { 
+                status: 'expired',
+                updatedAt: new Date()
+            }
+        );
+
+        console.log(`✅ Updated ${expiringSoonResult.modifiedCount} documents to 'expiring-soon'`);
+        console.log(`✅ Updated ${expiredResult.modifiedCount} documents to 'expired'`);
+
+        return {
+            expiringSoon: expiringSoonResult.modifiedCount,
+            expired: expiredResult.modifiedCount
+        };
+
+    } catch (error) {
+        console.error('❌ Error updating document statuses:', error);
+        throw error;
+    }
+};
+
 // ✅ GET DOCUMENTS EXPIRING SOON
 export const getExpiringDocuments = async (req, res) => {
     try {
         const { days = 30 } = req.query;
         console.log(`🔄 Fetching documents expiring within ${days} days`);
+
+        // First update document statuses
+        await updateDocumentStatuses();
 
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + parseInt(days));
@@ -537,7 +590,7 @@ export const getExpiringDocuments = async (req, res) => {
                 $gte: new Date(),
                 $lte: futureDate
             },
-            status: { $ne: 'expired' }
+            status: { $in: ['valid', 'expiring-soon'] }
         })
         .populate('employee', 'name email role internalId')
         .populate('uploadedBy', 'name email')

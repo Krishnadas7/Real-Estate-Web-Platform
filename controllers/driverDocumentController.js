@@ -12,7 +12,7 @@ export const uploadDriverDocument = async (req, res) => {
         fileUrl = req.file.location;
       } else {
         // Local storage
-        fileUrl = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        fileUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
 
@@ -93,7 +93,7 @@ export const updateDriverDocument = async (req, res) => {
         const oldPath = fileUrl.replace(`${req.protocol}://${req.get("host")}/`, "");
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
-      fileUrl = process.env.NODE_ENV === "production" ? req.file.location : `${req.protocol}://${req.get("host")}/${req.file.path}`;
+      fileUrl = process.env.NODE_ENV === "production" ? req.file.location : `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
     }
 
     doc.documentType = req.body.documentType || doc.documentType;
@@ -127,4 +127,93 @@ export const deleteDriverDocument = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+};
+
+// ✅ UPDATE DRIVER DOCUMENT STATUSES BASED ON EXPIRY
+export const updateDriverDocumentStatuses = async () => {
+    try {
+        console.log('🔄 Updating driver document statuses based on expiry dates...');
+        
+        const today = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+        // Update documents that are expiring soon (within 30 days)
+        const expiringSoonResult = await DriverDocument.updateMany(
+            {
+                expiryDate: {
+                    $gte: today,
+                    $lte: thirtyDaysFromNow
+                },
+                status: { $nin: ['expired', 'expiring-soon'] }
+            },
+            { 
+                status: 'expiring-soon',
+                updatedAt: new Date()
+            }
+        );
+
+        // Update documents that have expired
+        const expiredResult = await DriverDocument.updateMany(
+            {
+                expiryDate: { $lt: today },
+                status: { $ne: 'expired' }
+            },
+            { 
+                status: 'expired',
+                updatedAt: new Date()
+            }
+        );
+
+        console.log(`✅ Updated ${expiringSoonResult.modifiedCount} driver documents to 'expiring-soon'`);
+        console.log(`✅ Updated ${expiredResult.modifiedCount} driver documents to 'expired'`);
+
+        return {
+            expiringSoon: expiringSoonResult.modifiedCount,
+            expired: expiredResult.modifiedCount
+        };
+
+    } catch (error) {
+        console.error('❌ Error updating driver document statuses:', error);
+        throw error;
+    }
+};
+
+// ✅ GET DRIVER DOCUMENTS EXPIRING SOON
+export const getExpiringDriverDocuments = async (req, res) => {
+    try {
+        const { days = 30 } = req.query;
+        console.log(`🔄 Fetching driver documents expiring within ${days} days`);
+
+        // First update document statuses
+        await updateDriverDocumentStatuses();
+
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + parseInt(days));
+
+        const documents = await DriverDocument.find({
+            expiryDate: {
+                $gte: new Date(),
+                $lte: futureDate
+            },
+            status: { $in: ['completed', 'expiring-soon'] }
+        })
+        .populate('driver', 'name email phone internalId')
+        .sort({ expiryDate: 1 });
+
+        console.log(`✅ Found ${documents.length} driver documents expiring within ${days} days`);
+
+        res.status(200).json({
+            success: true,
+            data: documents
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching expiring driver documents:', error);
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message
+        });
+    }
 };

@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
       avatar:{type:String},
       status:{type:String,enum:['active','inactive']},
       company: { type: mongoose.Types.ObjectId, ref: "CompanySettings"},
-      internalId:{type:String},
+      internalId:{type:String, required: true, unique: true},
       location:{
         address:{type:String},
         longitude:{type:String},latitude:{type:String}},

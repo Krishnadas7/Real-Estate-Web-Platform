@@ -22,7 +22,7 @@ export const createPaymentSession = async (req, res) => {
               name: `Invoice #${invoice._id}`,
               description: invoice.notes || "Invoice payment",
             },
-            unit_amount: invoice.amount * 100, // Stripe works in cents
+            unit_amount: Math.round(parseFloat(invoice.amount) * 100), // Stripe works in cents
           },
           quantity: 1,
         },
@@ -44,5 +44,33 @@ export const createPaymentSession = async (req, res) => {
   } catch (err) {
     console.error("Stripe session error:", err);
     res.status(500).json({success:false, message: err.message });
+  }
+};
+
+// Test Stripe connection
+export const testStripeConnection = async (req, res) => {
+  try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "Stripe secret key not configured"
+      });
+    }
+
+    // Test Stripe connection by listing products
+    const products = await stripe.products.list({ limit: 1 });
+    
+    res.json({
+      success: true,
+      message: "Stripe connection successful",
+      stripeConfigured: true
+    });
+  } catch (err) {
+    console.error("Stripe connection test error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Stripe connection failed",
+      error: err.message
+    });
   }
 };

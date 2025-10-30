@@ -524,3 +524,11 @@ dispatcherRoute.delete(
   authorizeRoles('admin', 'superadmin', 'dispatcher'),
   deleteIssue
 )
+
+// Invoice loads endpoint - specifically for invoice form
+dispatcherRoute.get(
+  '/invoice-loads',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getAllLoads
+)

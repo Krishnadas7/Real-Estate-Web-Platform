@@ -30,7 +30,9 @@ import {
   getAllDocumentsWithDriver,
   getDriverDocuments,
   updateDriverDocument,
-  uploadDriverDocument
+  uploadDriverDocument,
+  getExpiringDriverDocuments,
+  updateDriverDocumentStatuses
 } from '../controllers/driverDocumentController.js'
 import {
   createPayroll,
@@ -54,6 +56,8 @@ import {
 } from '../controllers/user/invoiceController.js'
 import { getReports } from '../controllers/user/reportsController.js'
 import { getDriverActivities } from '../controllers/driver/driverAcivityController.js'
+import { createPaymentSession, testStripeConnection } from '../controllers/user/paymentController.js'
+import { listAttendance, upsertAttendance, deleteAttendance } from '../controllers/hr/attendanceController.js'
 export const hrRoute = express.Router()
 
 
@@ -154,6 +158,14 @@ hrRoute.get(
   authMiddleware,
   authorizeRoles('admin', 'superadmin', 'hr'),
   getDriverDocuments
+)
+
+// Driver documents expiring soon
+hrRoute.get(
+  '/driver-document-expiring',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'hr'),
+  getExpiringDriverDocuments
 ) // One driver + docs
 hrRoute.put(
   '/driver-document/:id',
@@ -267,5 +279,40 @@ hrRoute.get(
   authMiddleware,
   authorizeRoles('admin', 'superadmin', 'hr'),
   getDriverActivities
+)
+
+// Attendance
+hrRoute.get(
+  '/attendance',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'hr'),
+  listAttendance
+)
+hrRoute.post(
+  '/attendance',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'hr'),
+  upsertAttendance
+)
+hrRoute.delete(
+  '/attendance/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'hr'),
+  deleteAttendance
+)
+
+// Payment routes
+hrRoute.post(
+  '/create-payment-session',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'hr'),
+  createPaymentSession
+)
+
+hrRoute.get(
+  '/test-stripe',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'hr'),
+  testStripeConnection
 )
 

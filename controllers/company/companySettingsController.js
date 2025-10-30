@@ -23,7 +23,7 @@ export const upsertCompanySettings = async (req, res) => {
         logoUrl = req.file.location;
       } else {
         // From local storage
-        logoUrl = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        logoUrl = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
 

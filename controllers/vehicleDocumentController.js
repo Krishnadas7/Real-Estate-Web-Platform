@@ -51,7 +51,7 @@ export const updateDocument = async (req, res) => {
       if (process.env.NODE_ENV === "production") {
         updateData.documentLocation = req.file.location;
       } else {
-        updateData.documentLocation = `${req.protocol}://${req.get("host")}/${req.file.path}`;
+        updateData.documentLocation = `${req.protocol}://${req.get("host")}/${req.file.path.replace(/\\/g, '/')}`;
       }
     }
 

@@ -490,6 +490,10 @@ export const getEmployeeStats = async (req, res) => {
     try {
         console.log('🔄 Fetching employee statistics');
 
+        // First, let's see what users exist
+        const allUsers = await User.find({}).select('name email role status');
+        console.log('👥 All users in database:', allUsers);
+
         const stats = await User.aggregate([
             {
                 $match: {
@@ -510,6 +514,8 @@ export const getEmployeeStats = async (req, res) => {
             }
         ]);
 
+        console.log('📊 Employee stats aggregation result:', stats);
+
         const roleStats = await User.aggregate([
             {
                 $match: {
@@ -524,6 +530,8 @@ export const getEmployeeStats = async (req, res) => {
             },
             { $sort: { count: -1 } }
         ]);
+
+        console.log('📊 Role stats aggregation result:', roleStats);
 
         const monthlyStats = await User.aggregate([
             {
@@ -545,12 +553,14 @@ export const getEmployeeStats = async (req, res) => {
         ]);
 
         const result = {
-            total: stats[0]?.totalEmployees || 0,
-            active: stats[0]?.activeEmployees || 0,
-            inactive: stats[0]?.inactiveEmployees || 0,
-            byRole: roleStats,
-            monthlyJoins: monthlyStats
+            totalEmployees: stats.length > 0 ? stats[0].totalEmployees : 0,
+            activeEmployees: stats.length > 0 ? stats[0].activeEmployees : 0,
+            inactiveEmployees: stats.length > 0 ? stats[0].inactiveEmployees : 0,
+            roleStats: roleStats,
+            monthlyStats: monthlyStats
         };
+
+        console.log('📊 Final result:', result);
 
         console.log('✅ Employee statistics fetched successfully');
 
