@@ -39,7 +39,7 @@ export const createEmployeeValidation = [
     body('role')
         .notEmpty()
         .withMessage('Role is required')
-        .isIn(['employee', 'dispatcher', 'hr', 'contact', 'customer', 'reporter', 'fleetmanager', 'safetyofficer', 'operationsstaff', 'maintenancecrew', 'administrative'])
+        .isIn(['employee', 'driver', 'dispatcher', 'hr', 'contact', 'customer', 'reporter', 'fleetmanager', 'safetyofficer', 'operationsstaff', 'maintenancecrew', 'administrative'])
         .withMessage('Invalid role selected'),
 
     body('policies')
@@ -125,7 +125,7 @@ export const updateEmployeeValidation = [
 
     body('role')
         .optional()
-        .isIn(['employee', 'dispatcher', 'hr', 'contact', 'customer', 'reporter', 'fleetmanager', 'safetyofficer', 'operationsstaff', 'maintenancecrew', 'administrative'])
+        .isIn(['employee', 'driver', 'dispatcher', 'hr', 'contact', 'customer', 'reporter', 'fleetmanager', 'safetyofficer', 'operationsstaff', 'maintenancecrew', 'administrative'])
         .withMessage('Invalid role selected'),
 
     body('policies')

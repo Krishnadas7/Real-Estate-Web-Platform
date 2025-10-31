@@ -19,6 +19,8 @@ const employeeDocumentSchema = new mongoose.Schema({
       "Tax Document",
       "Emergency Contact",
       "Medical Certificate",
+      "Driving Licence",
+      "Travel Document",
       "Other"
     ],
     required: true

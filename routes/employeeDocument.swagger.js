@@ -18,7 +18,7 @@
  *           example: "64f1a2b3c4d5e6f7g8h9i0j2"
  *         documentType:
  *           type: string
- *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Other"]
+ *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Driving Licence", "Travel Document", "Other"]
  *           description: Type of document
  *           example: "Employment Contract"
  *         documentNumber:
@@ -104,7 +104,7 @@
  *           example: "64f1a2b3c4d5e6f7g8h9i0j2"
  *         documentType:
  *           type: string
- *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Other"]
+ *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Driving Licence", "Travel Document", "Other"]
  *           description: Type of document
  *           example: "Employment Contract"
  *         documentNumber:
@@ -140,7 +140,7 @@
  *       properties:
  *         documentType:
  *           type: string
- *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Other"]
+ *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Driving Licence", "Travel Document", "Other"]
  *           description: Type of document
  *         documentNumber:
  *           type: string
@@ -517,7 +517,7 @@
  *         name: documentType
  *         schema:
  *           type: string
- *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Other"]
+ *           enum: ["Employment Contract", "ID Document", "Passport", "Work Permit", "Background Check", "Drug Test", "Training Certificate", "Insurance Policy", "Company Policy", "Performance Review", "Payroll Document", "Tax Document", "Emergency Contact", "Medical Certificate", "Driving Licence", "Travel Document", "Other"]
  *         description: Filter by document type
  *         example: "Employment Contract"
  *       - in: query

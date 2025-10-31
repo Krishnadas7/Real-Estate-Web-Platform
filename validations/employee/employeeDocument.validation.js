@@ -26,6 +26,8 @@ export const createEmployeeDocumentValidation = [
             'Tax Document',
             'Emergency Contact',
             'Medical Certificate',
+            'Driving Licence',
+            'Travel Document',
             'Other'
         ])
         .withMessage('Invalid document type'),
@@ -109,6 +111,8 @@ export const updateEmployeeDocumentValidation = [
             'Tax Document',
             'Emergency Contact',
             'Medical Certificate',
+            'Driving Licence',
+            'Travel Document',
             'Other'
         ])
         .withMessage('Invalid document type'),
@@ -244,6 +248,8 @@ export const documentQueryValidation = [
             'Tax Document',
             'Emergency Contact',
             'Medical Certificate',
+            'Driving Licence',
+            'Travel Document',
             'Other'
         ])
         .withMessage('Invalid document type'),

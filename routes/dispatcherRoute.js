@@ -14,7 +14,8 @@ import {
   deleteLoad,
   getAllLoads,
   getLoadById,
-  updateLoad
+  updateLoad,
+  assignDriverTruck
 } from '../controllers/loadController.js'
 import { loadValidation } from '../validations/load/load.validation.js'
 import {
@@ -479,6 +480,12 @@ dispatcherRoute.put(
   authorizeRoles('admin', 'superadmin', 'dispatcher'),
   loadValidation,
   updateLoad
+)
+dispatcherRoute.post(
+  '/load/:loadId/assign',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  assignDriverTruck
 )
 dispatcherRoute.delete(
   '/load/:id',

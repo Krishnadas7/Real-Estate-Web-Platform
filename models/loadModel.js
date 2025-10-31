@@ -32,6 +32,18 @@ const loadSchema = new mongoose.Schema(
         type: String,
         enums: ['scan', 'signature', 'photo'],
         default: null
+      },
+      // Load amount/rate
+      amount: { type: Number, default: 0 },
+      rate: { type: Number, default: 0 },
+      // Receiver details
+      receiver: {
+        name: { type: String },
+        email: { type: String },
+        phone: { type: String },
+        address: { type: String },
+        contactPerson: { type: String },
+        notes: { type: String }
       }
     },
     route: {
@@ -88,8 +100,8 @@ const loadSchema = new mongoose.Schema(
     ],
     status:{
       type:String,
-      enum: ["pending", "active", "completed"],
-      default:'pending'
+      enum: ["planned", "dispatched", "in-delivery", "delivered", "completed"],
+      default:'planned'
     },
     assignedAt: { type: Date, default: null },
   startedAt: { type: Date},

@@ -32,7 +32,64 @@ export const createEmployee = async (req, res) => {
             internalId,
             address,
             status = 'active',
-            company
+            company,
+            // Driver-specific fields
+            incorporation,
+            employeeCode,
+            postalCode,
+            fleet,
+            citizenship,
+            paymentMethod,
+            account,
+            wsib,
+            wsibAccountNo,
+            expiryDate,
+            remark,
+            gstNo,
+            profileImage,
+            companyFlag,
+            cell1,
+            cell2,
+            extension,
+            fax,
+            gender,
+            dateOfBirth,
+            hireDate,
+            termDate,
+            csa,
+            fastCardNo,
+            fastCardExpiry,
+            medicalRequired,
+            defaultChargeName,
+            defaultCurrency,
+            chargesAppliedOn,
+            defaultMode,
+            defaultAmount,
+            defaultRemarks,
+            defaultPayrollType,
+            paymentCurrency,
+            mileRate,
+            mileRateTeam,
+            emptyMileRate,
+            emptyMileRateTeam,
+            hourlyRate,
+            weightRate,
+            percentageRate,
+            localTaxNo,
+            federalTaxNo,
+            sinNo,
+            craAccountNo,
+            fedTaxExempt,
+            provTaxExempt,
+            cppQppExempt,
+            eiExempt,
+            qpipExempt,
+            payPeriod,
+            vacationPay,
+            ltl,
+            onSettlements,
+            settlementCurrencyByOrder,
+            isDefault
         } = req.body;
 
         // Check if employee already exists
@@ -56,27 +113,96 @@ export const createEmployee = async (req, res) => {
             console.log('📍 Coordinates received:', coordinates);
         }
 
-        // Create new employee
+        // Build employee data
         const employeeData = {
-            name,
+            name: name,
             email,
-            phone,
+            phone: phone || cell1 || cell2,
             country,
             state,
             city,
             role,
             policies,
-            joinDate: joinDate || new Date(),
+            joinDate: joinDate || hireDate || new Date(),
             status,
             company,
             internalId,
             password: hashedPassword,
             location: {
-                address,
+                address: address,
                 longitude: coordinates.longitude,
                 latitude: coordinates.latitude
             }
         };
+
+        // Add driver-specific details if role is driver
+        if (role === 'driver') {
+            employeeData.details = {
+                incorporation,
+                employeeCode: employeeCode || internalId,
+                postalCode,
+                fleet,
+                citizenship,
+                paymentMethod,
+                account,
+                wsib: wsib || false,
+                wsibAccountNo,
+                expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+                remark,
+                gstNo,
+                profileImage,
+                companyFlag: companyFlag || false,
+                cell1,
+                cell2,
+                extension,
+                fax,
+                gender,
+                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+                hireDate: hireDate ? new Date(hireDate) : undefined,
+                termDate: termDate ? new Date(termDate) : undefined,
+                csa: csa || false,
+                fastCardNo,
+                fastCardExpiry: fastCardExpiry ? new Date(fastCardExpiry) : undefined,
+                medicalRequired: medicalRequired || false,
+                defaultChargeName,
+                defaultCurrency,
+                chargesAppliedOn,
+                defaultMode,
+                defaultAmount: defaultAmount || 0,
+                defaultRemarks,
+                defaultPayrollType,
+                paymentCurrency,
+                mileRate: mileRate || 0,
+                mileRateTeam: mileRateTeam || 0,
+                emptyMileRate: emptyMileRate || 0,
+                emptyMileRateTeam: emptyMileRateTeam || 0,
+                hourlyRate: hourlyRate || 0,
+                weightRate: weightRate || 0,
+                percentageRate: percentageRate || 0,
+                localTaxNo,
+                federalTaxNo,
+                sinNo,
+                craAccountNo,
+                fedTaxExempt: fedTaxExempt || false,
+                provTaxExempt: provTaxExempt || false,
+                cppQppExempt: cppQppExempt || false,
+                eiExempt: eiExempt || false,
+                qpipExempt: qpipExempt || false,
+                payPeriod,
+                vacationPay,
+                ltl: ltl || false,
+                onSettlements: onSettlements || false,
+                settlementCurrencyByOrder: settlementCurrencyByOrder || false,
+                isDefault: isDefault || false
+            };
+
+            // Remove undefined values from details
+            Object.keys(employeeData.details).forEach(key => {
+                if (employeeData.details[key] === undefined || employeeData.details[key] === '') {
+                    delete employeeData.details[key];
+                }
+            });
+        }
 
         const employee = new User(employeeData);
         await employee.save();
@@ -132,8 +258,9 @@ export const getAllEmployees = async (req, res) => {
         // Build filter object
         const filter = {};
         
-        // Exclude admin, superadmin, and driver roles from employee listing
-        filter.role = { $nin: ['admin', 'superadmin', 'driver'] };
+        // Exclude only admin and superadmin from employee listing
+        // Drivers are now included in employee management
+        filter.role = { $nin: ['admin', 'superadmin'] };
         
         if (search) {
             filter.$or = [
@@ -145,8 +272,8 @@ export const getAllEmployees = async (req, res) => {
         }
 
         if (role) {
-            // Only allow filtering by non-excluded roles
-            if (!['admin', 'superadmin', 'driver'].includes(role)) {
+            // Allow filtering by any role except admin/superadmin
+            if (!['admin', 'superadmin'].includes(role)) {
                 filter.role = role;
             }
         }
@@ -269,7 +396,64 @@ export const updateEmployee = async (req, res) => {
             status,
             company,
             internalId,
-            address
+            address,
+            // Driver-specific fields
+            incorporation,
+            employeeCode,
+            postalCode,
+            fleet,
+            citizenship,
+            paymentMethod,
+            account,
+            wsib,
+            wsibAccountNo,
+            expiryDate,
+            remark,
+            gstNo,
+            profileImage,
+            companyFlag,
+            cell1,
+            cell2,
+            extension,
+            fax,
+            gender,
+            dateOfBirth,
+            hireDate,
+            termDate,
+            csa,
+            fastCardNo,
+            fastCardExpiry,
+            medicalRequired,
+            defaultChargeName,
+            defaultCurrency,
+            chargesAppliedOn,
+            defaultMode,
+            defaultAmount,
+            defaultRemarks,
+            defaultPayrollType,
+            paymentCurrency,
+            mileRate,
+            mileRateTeam,
+            emptyMileRate,
+            emptyMileRateTeam,
+            hourlyRate,
+            weightRate,
+            percentageRate,
+            localTaxNo,
+            federalTaxNo,
+            sinNo,
+            craAccountNo,
+            fedTaxExempt,
+            provTaxExempt,
+            cppQppExempt,
+            eiExempt,
+            qpipExempt,
+            payPeriod,
+            vacationPay,
+            ltl,
+            onSettlements,
+            settlementCurrencyByOrder,
+            isDefault
         } = req.body;
 
         // Check if employee exists
@@ -313,9 +497,9 @@ export const updateEmployee = async (req, res) => {
 
         // Prepare update data
         const updateData = {
-            name,
+            name: name,
             email,
-            phone,
+            phone: phone || cell1 || cell2,
             country,
             state,
             city,
@@ -326,13 +510,91 @@ export const updateEmployee = async (req, res) => {
             internalId,
             password: hashedPassword,
             location: {
-                address,
+                address: address,
                 longitude: coordinates.longitude,
                 latitude: coordinates.latitude
             }
         };
 
-        // Remove undefined values
+        // Add driver-specific details if role is driver
+        if (role === 'driver') {
+            updateData.details = {
+                incorporation,
+                employeeCode: employeeCode || internalId || existingEmployee.details?.employeeCode,
+                postalCode,
+                fleet,
+                citizenship,
+                paymentMethod,
+                account,
+                wsib: wsib !== undefined ? wsib : existingEmployee.details?.wsib || false,
+                wsibAccountNo,
+                expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+                remark,
+                gstNo,
+                profileImage,
+                companyFlag: companyFlag !== undefined ? companyFlag : existingEmployee.details?.companyFlag || false,
+                cell1,
+                cell2,
+                extension,
+                fax,
+                gender,
+                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+                hireDate: hireDate ? new Date(hireDate) : undefined,
+                termDate: termDate ? new Date(termDate) : undefined,
+                csa: csa !== undefined ? csa : existingEmployee.details?.csa || false,
+                fastCardNo,
+                fastCardExpiry: fastCardExpiry ? new Date(fastCardExpiry) : undefined,
+                medicalRequired: medicalRequired !== undefined ? medicalRequired : existingEmployee.details?.medicalRequired || false,
+                defaultChargeName,
+                defaultCurrency,
+                chargesAppliedOn,
+                defaultMode,
+                defaultAmount: defaultAmount !== undefined ? defaultAmount : 0,
+                defaultRemarks,
+                defaultPayrollType,
+                paymentCurrency,
+                mileRate: mileRate !== undefined ? mileRate : 0,
+                mileRateTeam: mileRateTeam !== undefined ? mileRateTeam : 0,
+                emptyMileRate: emptyMileRate !== undefined ? emptyMileRate : 0,
+                emptyMileRateTeam: emptyMileRateTeam !== undefined ? emptyMileRateTeam : 0,
+                hourlyRate: hourlyRate !== undefined ? hourlyRate : 0,
+                weightRate: weightRate !== undefined ? weightRate : 0,
+                percentageRate: percentageRate !== undefined ? percentageRate : 0,
+                localTaxNo,
+                federalTaxNo,
+                sinNo,
+                craAccountNo,
+                fedTaxExempt: fedTaxExempt !== undefined ? fedTaxExempt : false,
+                provTaxExempt: provTaxExempt !== undefined ? provTaxExempt : false,
+                cppQppExempt: cppQppExempt !== undefined ? cppQppExempt : false,
+                eiExempt: eiExempt !== undefined ? eiExempt : false,
+                qpipExempt: qpipExempt !== undefined ? qpipExempt : false,
+                payPeriod,
+                vacationPay,
+                ltl: ltl !== undefined ? ltl : false,
+                onSettlements: onSettlements !== undefined ? onSettlements : false,
+                settlementCurrencyByOrder: settlementCurrencyByOrder !== undefined ? settlementCurrencyByOrder : false,
+                isDefault: isDefault !== undefined ? isDefault : false
+            };
+
+            // Merge with existing details if updating
+            if (existingEmployee.details) {
+                Object.keys(existingEmployee.details).forEach(key => {
+                    if (updateData.details[key] === undefined || updateData.details[key] === '') {
+                        updateData.details[key] = existingEmployee.details[key];
+                    }
+                });
+            }
+
+            // Remove undefined values from details
+            Object.keys(updateData.details).forEach(key => {
+                if (updateData.details[key] === undefined || updateData.details[key] === '') {
+                    delete updateData.details[key];
+                }
+            });
+        }
+
+        // Remove undefined values from main updateData
         Object.keys(updateData).forEach(key => {
             if (updateData[key] === undefined) {
                 delete updateData[key];

@@ -60,12 +60,16 @@ export const createEmployeeDocument = async (req, res) => {
             });
         }
 
-        // Check if document type already exists for this employee
-        const existingDocument = await EmployeeDocument.findOne({
+        // Check if document type already exists for this employee (filter by company if applicable)
+        const duplicateCheckFilter = {
             employee,
             documentType,
             status: { $ne: 'expired' }
-        });
+        };
+        if (req.user.company) {
+            duplicateCheckFilter.company = req.user.company;
+        }
+        const existingDocument = await EmployeeDocument.findOne(duplicateCheckFilter);
 
         if (existingDocument) {
             return res.status(400).json({
@@ -119,6 +123,7 @@ export const getAllEmployeeDocuments = async (req, res) => {
             employee,
             documentType,
             status,
+            role,
             page = 1,
             limit = 10,
             sortBy = 'createdAt',
@@ -131,13 +136,32 @@ export const getAllEmployeeDocuments = async (req, res) => {
         const documentFilters = {};
         if (documentType) documentFilters.documentType = documentType;
         if (status) documentFilters.status = status;
-        if (req.user.company) documentFilters.company = req.user.company;
+        // Filter documents by company - include documents with matching company or no company set
+        if (req.user.company) {
+            documentFilters.$or = [
+                { company: req.user.company },
+                { company: null },
+                { company: { $exists: false } }
+            ];
+        }
 
         // Build employee filter object
         const employeeFilters = {};
-        if (req.user.company) employeeFilters.company = req.user.company;
-        // Exclude admin, superadmin, and driver roles
-        employeeFilters.role = { $nin: ['admin', 'superadmin', 'driver'] };
+        // Filter by company - handle both employees with company and without company (null/undefined)
+        if (req.user.company) {
+            employeeFilters.$or = [
+                { company: req.user.company },
+                { company: null },
+                { company: { $exists: false } }
+            ];
+        }
+        // Filter by role if provided, otherwise exclude admin and superadmin only (allow driver)
+        if (role) {
+            employeeFilters.role = role;
+        } else {
+            // Default: exclude only admin and superadmin (allow driver and other roles)
+            employeeFilters.role = { $nin: ['admin', 'superadmin'] };
+        }
 
         // Calculate pagination
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -155,10 +179,19 @@ export const getAllEmployeeDocuments = async (req, res) => {
         
         console.log('Found employees:', employees.length);
 
-        // If specific employee is requested, filter by that employee
+        // If specific employee is requested, filter by that employee (ignore role filter for specific employee lookup)
         if (employee) {
-            employeeFilters._id = employee;
-            const specificEmployees = await User.find(employeeFilters)
+            const specificEmployeeFilter = { _id: employee };
+            // Handle company filter - include employees with matching company or no company set
+            if (req.user.company) {
+                specificEmployeeFilter.$or = [
+                    { company: req.user.company },
+                    { company: null },
+                    { company: { $exists: false } }
+                ];
+            }
+            // Don't apply role filter when looking up specific employee - include all roles
+            const specificEmployees = await User.find(specificEmployeeFilter)
                 .select('name email phone country state city role status joinDate internalId location company');
             
             if (specificEmployees.length === 0) {
@@ -189,7 +222,10 @@ export const getAllEmployeeDocuments = async (req, res) => {
                 .populate('verifiedBy', 'name email')
                 .sort({ createdAt: -1 });
 
-                console.log(`Employee ${emp.name} (${emp._id}) has ${documents.length} documents`);
+                console.log(`Employee ${emp.name} (${emp._id}, role: ${emp.role}) has ${documents.length} documents`);
+                if (documents.length > 0) {
+                    console.log(`  Document types: ${documents.map(d => d.documentType).join(', ')}`);
+                }
 
                 return {
                     employee: {
@@ -213,7 +249,13 @@ export const getAllEmployeeDocuments = async (req, res) => {
         );
 
         // Get total count of employees (for pagination)
-        const totalEmployees = await User.countDocuments(employeeFilters);
+        // If specific employee is selected, count should be 1
+        let totalEmployees;
+        if (employee) {
+            totalEmployees = employees.length; // 1 if found, 0 if not
+        } else {
+            totalEmployees = await User.countDocuments(employeeFilters);
+        }
 
         console.log(`✅ Found ${employeesWithDocuments.length} employees with their documents`);
 
@@ -322,14 +364,18 @@ export const updateEmployeeDocument = async (req, res) => {
             });
         }
 
-        // Check if document type already exists for this employee (excluding current document)
+        // Check if document type already exists for this employee (excluding current document, filter by company if applicable)
         if (documentType && documentType !== existingDocument.documentType) {
-            const duplicateDocument = await EmployeeDocument.findOne({
+            const duplicateCheckFilter = {
                 employee: existingDocument.employee,
                 documentType,
                 status: { $ne: 'expired' },
                 _id: { $ne: id }
-            });
+            };
+            if (req.user.company) {
+                duplicateCheckFilter.company = req.user.company;
+            }
+            const duplicateDocument = await EmployeeDocument.findOne(duplicateCheckFilter);
 
             if (duplicateDocument) {
                 return res.status(400).json({

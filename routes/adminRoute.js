@@ -66,9 +66,42 @@ import {
 import {
   createSparePart,
   getSpareParts,
+  getSparePartById,
+  updateSparePart,
+  deleteSparePart,
   useSparePart
 } from '../controllers/work/sparePartController.js'
-import { getComplianceSummary } from '../controllers/compilance/compilanceController.js'
+import {
+  getSuppliers,
+  getSupplierById,
+  createSupplier,
+  updateSupplier,
+  deleteSupplier
+} from '../controllers/work/supplierController.js'
+import {
+  getFleetInvoices,
+  getFleetInvoiceById,
+  createFleetInvoice,
+  updateFleetInvoice,
+  deleteFleetInvoice,
+  updateFleetInvoiceStatus
+} from '../controllers/work/fleetInvoiceController.js'
+import { 
+  getComplianceSummary,
+  getCvsaInspections,
+  getCvsaInspectionById,
+  createCvsaInspection,
+  updateCvsaInspection,
+  deleteCvsaInspection,
+  getCvsaInspectionStats,
+  getCvsaMonthlyReport,
+  getTickets,
+  getTicketById,
+  createTicket,
+  updateTicket,
+  deleteTicket,
+  getTicketStats
+} from '../controllers/compilance/compilanceController.js'
 import {
   getDashboardStats,
   getFuelEfficiency,
@@ -272,11 +305,35 @@ adminRoute.delete(
 
 // Spare Parts
 
+adminRoute.get(
+  '/spareparts',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  getSpareParts
+)
+adminRoute.get(
+  '/spareparts/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  getSparePartById
+)
 adminRoute.post(
   '/spareparts',
   authMiddleware,
   authorizeRoles('admin', 'superadmin'),
   createSparePart
+)
+adminRoute.put(
+  '/spareparts/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  updateSparePart
+)
+adminRoute.delete(
+  '/spareparts/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  deleteSparePart
 )
 adminRoute.put(
   '/spareparts/:id/use',
@@ -285,11 +342,76 @@ adminRoute.put(
   useSparePart
 )
 
+// Suppliers
+
 adminRoute.get(
-  '/spareparts',
+  '/suppliers',
   authMiddleware,
   authorizeRoles('admin', 'superadmin'),
-  getSpareParts
+  getSuppliers
+)
+adminRoute.get(
+  '/suppliers/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  getSupplierById
+)
+adminRoute.post(
+  '/suppliers',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  createSupplier
+)
+adminRoute.put(
+  '/suppliers/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  updateSupplier
+)
+adminRoute.delete(
+  '/suppliers/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  deleteSupplier
+)
+
+// Fleet Invoices
+
+adminRoute.get(
+  '/fleet-invoices',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  getFleetInvoices
+)
+adminRoute.get(
+  '/fleet-invoices/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  getFleetInvoiceById
+)
+adminRoute.post(
+  '/fleet-invoices',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  createFleetInvoice
+)
+adminRoute.put(
+  '/fleet-invoices/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  updateFleetInvoice
+)
+adminRoute.patch(
+  '/fleet-invoices/:id/status',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  updateFleetInvoiceStatus
+)
+adminRoute.delete(
+  '/fleet-invoices/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin'),
+  deleteFleetInvoice
 )
 
 adminRoute.get(
@@ -314,6 +436,99 @@ adminRoute.get(
   authMiddleware,
   authorizeRoles('admin', 'superadmin','dispatcher','hr'),
   getComplianceSummary
+)
+
+// CVSA Inspection Routes
+adminRoute.get(
+  '/cvsa-inspections',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getCvsaInspections
+)
+
+adminRoute.get(
+  '/cvsa-inspections/stats',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getCvsaInspectionStats
+)
+
+adminRoute.get(
+  '/cvsa-inspections/monthly-report',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getCvsaMonthlyReport
+)
+
+adminRoute.get(
+  '/cvsa-inspections/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getCvsaInspectionById
+)
+
+// Ticket Routes
+adminRoute.get(
+  '/tickets',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getTickets
+)
+
+adminRoute.get(
+  '/tickets/stats',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getTicketStats
+)
+
+adminRoute.get(
+  '/tickets/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  getTicketById
+)
+
+adminRoute.post(
+  '/tickets',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  createTicket
+)
+
+adminRoute.put(
+  '/tickets/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  updateTicket
+)
+
+adminRoute.delete(
+  '/tickets/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  deleteTicket
+)
+
+adminRoute.post(
+  '/cvsa-inspections',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  createCvsaInspection
+)
+
+adminRoute.put(
+  '/cvsa-inspections/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  updateCvsaInspection
+)
+
+adminRoute.delete(
+  '/cvsa-inspections/:id',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher', 'hr'),
+  deleteCvsaInspection
 )
 
 adminRoute.get(

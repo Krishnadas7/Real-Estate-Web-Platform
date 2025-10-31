@@ -217,6 +217,32 @@ export const createLoad = async (req, res) => {
       };
     }
 
+    // ✅ Determine initial status based on driver and vehicle assignment
+    let initialStatus = "planned"; // default to planned
+    if (parsedDetails?.driver && parsedDetails?.vehicle) {
+      initialStatus = "dispatched"; // both assigned, set to dispatched
+    }
+
+    // ✅ Validate and sanitize status - only allow valid enum values
+    const validStatuses = ["planned", "dispatched", "in-delivery", "delivered", "completed"];
+    let finalStatus = initialStatus;
+    if (status) {
+      // Map old status values to new ones for backward compatibility
+      const statusMap = {
+        "pending": "planned",
+        "active": "dispatched",
+        "started": "in-delivery",
+        "assigned": "dispatched"
+      };
+      const mappedStatus = statusMap[status] || status;
+      if (validStatuses.includes(mappedStatus)) {
+        finalStatus = mappedStatus;
+      } else {
+        // If invalid status provided, use calculated initialStatus
+        console.warn(`Invalid status "${status}" provided, using "${initialStatus}" instead`);
+      }
+    }
+
     // ✅ Save load
     const load = new Load({
       details: parsedDetails,
@@ -225,9 +251,9 @@ export const createLoad = async (req, res) => {
       services: parsedServices,
       notes,
       documents: documentUrls.map((url) => ({ documentUrl: url })),
-      status: status || "pending",
-      // Only set assignedAt if a driver is assigned
-      assignedAt: parsedDetails?.driver ? new Date() : null,
+      status: finalStatus,
+      // Only set assignedAt if both driver and vehicle are assigned
+      assignedAt: (parsedDetails?.driver && parsedDetails?.vehicle) ? new Date() : null,
     });
 
     await load.save();
@@ -257,13 +283,13 @@ export const createLoad = async (req, res) => {
   }
 };
 
-// update load status (pending → active → completed)
+// update load status (for driver mobile app: planned → dispatched → in-delivery → delivered → completed)
 export const updateLoadStatus = async (req, res) => {
   try {
     const { loadId, status } = req.body; 
 
     // validate allowed statuses
-    const allowedStatuses = ["pending", "active", "completed"];
+    const allowedStatuses = ["planned", "dispatched", "in-delivery", "delivered", "completed"];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status" });
     }
@@ -274,35 +300,56 @@ export const updateLoadStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Load not found" });
     }
 
-    // update timestamps based on status
-    if (status === "active" && load.status === "pending") {
-      load.status = "active";
-      load.startedAt = new Date();
-    } else if (status === "completed" && load.status === "active") {
-      load.status = "completed";
-      load.completedAt = new Date();
-    } else {
+    // Validate status transitions
+    const validTransitions = {
+      'planned': ['dispatched'],
+      'dispatched': ['in-delivery', 'planned'], // can go back to planned if unassigned
+      'in-delivery': ['delivered', 'dispatched'],
+      'delivered': ['completed'],
+      'completed': [] // terminal state
+    };
+
+    const currentStatus = load.status;
+    if (!validTransitions[currentStatus]?.includes(status) && currentStatus !== status) {
       return res.status(400).json({
         success: false,
-        message: `Cannot move from ${load.status} to ${status}`,
+        message: `Cannot transition from ${currentStatus} to ${status}. Valid transitions: ${validTransitions[currentStatus]?.join(', ') || 'none'}`,
       });
+    }
+
+    // Update status
+    load.status = status;
+
+    // Update timestamps based on status
+    if (status === "in-delivery" && !load.startedAt) {
+      load.startedAt = new Date();
+    } else if (status === "completed" && !load.completedAt) {
+      load.completedAt = new Date();
     }
 
     await load.save();
 
     // Log driver activity if driver is assigned
-    if (load.details?.driver && req.user) {
+    if (load.details?.driver) {
       try {
-        await logDriverActivity({
-          driverId: load.details.driver,
-          activityType: status === 'active' ? 'load_started' : 'load_completed',
-          location: {
-            address: load.details.pickup?.address || 'Unknown Location',
-            latitude: load.details.pickup?.latitude || '',
-            longitude: load.details.pickup?.longitude || ''
-          },
-          loadId: load._id
-        });
+        const activityTypeMap = {
+          'in-delivery': 'load_started',
+          'delivered': 'load_delivered',
+          'completed': 'load_completed'
+        };
+        
+        if (activityTypeMap[status]) {
+          await logDriverActivity({
+            driverId: load.details.driver,
+            activityType: activityTypeMap[status],
+            location: {
+              address: load.route?.selectPickup?.place || 'Unknown Location',
+              latitude: load.route?.selectPickup?.latitude || '',
+              longitude: load.route?.selectPickup?.longitude || ''
+            },
+            loadId: load._id
+          });
+        }
       } catch (activityError) {
         console.error('Error logging driver activity:', activityError);
         // Don't fail the request if activity logging fails
@@ -319,13 +366,13 @@ export const updateLoadStatus = async (req, res) => {
   }
 };
 
-// === Active Loads ===
+// === Active Loads (In Delivery) ===
 export const activeLoads = async (req, res) => {
   try {
     const driverId = req.driver._id
 
     const loads = await Load.aggregate([
-      { $match: { "details.driver": driverId, status: "active" } },
+      { $match: { "details.driver": driverId, status: "in-delivery" } },
       {
         $lookup: {
           from: "users",
@@ -372,13 +419,13 @@ export const activeLoads = async (req, res) => {
   }
 }
 
-// === Pending Loads (example: active but not yet started) ===
+// === Pending Loads (Planned or Dispatched but not yet in delivery) ===
 export const pendingLoads = async (req, res) => {
   try {
     const driverId = req.driver._id
 
     const loads = await Load.aggregate([
-      { $match: { "details.driver": driverId, status: "pending" } }, // business logic: pending == active
+      { $match: { "details.driver": driverId, status: { $in: ["planned", "dispatched"] } } }, // planned or dispatched loads
       {
         $lookup: {
           from: "users",
@@ -424,13 +471,13 @@ export const pendingLoads = async (req, res) => {
   }
 }
 
-// === Started Loads ===
+// === Started Loads (In Delivery) ===
 export const startedLoads = async (req, res) => {
   try {
     const driverId = req.driver._id
 
     const loads = await Load.aggregate([
-      { $match: { "details.driver": driverId, status: "started" } },
+      { $match: { "details.driver": driverId, status: "in-delivery" } },
       {
         $project: {
           orderType: "$details.orderType",
@@ -504,22 +551,72 @@ export const deliveredLoads = async (req, res) => {
 
 export const getAllLoads = async (req, res) => {
   try {
-    const loads = await Load.find()
+    const { status, driverId } = req.query;
+    
+    // Build query
+    const query = {};
+    if (status) {
+      query.status = status;
+    }
+    if (driverId) {
+      query["details.driver"] = driverId;
+    }
+    
+    const loads = await Load.find(query)
       .populate("details.customer", "name email") // fetch customer name and email
-      .populate("details.driver", "name")   // only fetch driver name
-      .populate("route.wayPoints.customer", "name email"); // if waypoints need customer name and email
+      .populate("details.driver", "name phone email internalId")   // fetch driver details
+      .populate("details.vehicle", "plateNumber make model internalId")   // fetch vehicle details
+      .populate("route.wayPoints.customer", "name email") // if waypoints need customer name and email
+      .sort({ createdAt: -1 });
 
-    const formattedLoads = loads.map((load) => ({
+    const formattedLoads = loads.map((load) => {
+      // Ensure status is correct based on driver and vehicle assignment
+      let calculatedStatus = load.status;
+      const hasDriver = !!load.details?.driver;
+      const hasVehicle = !!load.details?.vehicle;
+      
+      // Auto-correct status if needed (for backward compatibility)
+      if (hasDriver && hasVehicle && calculatedStatus === 'planned') {
+        calculatedStatus = 'dispatched';
+        // Don't save here - just return corrected status in response
+      } else if ((!hasDriver || !hasVehicle) && calculatedStatus !== 'completed' && calculatedStatus !== 'delivered') {
+        // If missing driver or vehicle and not completed/delivered, should be planned
+        if (calculatedStatus !== 'planned') {
+          calculatedStatus = 'planned';
+        }
+      }
+      
+      // Calculate total amount from payloads if not set in details
+      let totalAmount = load.details?.amount || 0;
+      if (totalAmount === 0 && load.payloads && load.payloads.length > 0) {
+        totalAmount = load.payloads.reduce((sum, payload) => {
+          return sum + (payload.priceAndValues?.salePrice || payload.priceAndValues?.price || 0);
+        }, 0);
+      }
+      
+      return {
       _id: load._id,  // Add the _id field for frontend compatibility
       orderId: load._id,
+      loadNumber: load.details?.internalId || load._id.toString().slice(-8).toUpperCase(),
       driverName: load.details?.driver?.name || null,
+      driverId: load.details?.driver?._id || null,
+      vehicleId: load.details?.vehicle?._id || null,
+      vehiclePlate: load.details?.vehicle?.plateNumber || null,
       customerName: load.details?.customer?.name || null,
       customerEmail: load.details?.customer?.email || null,
+      receiver: load.details?.receiver || null,
+      amount: totalAmount,
+      rate: load.details?.rate || 0,
       route: load.route || [],
-      status: load.status || null,
+      status: calculatedStatus,
       notes: load.notes || null,
       assignedAt: load.assignedAt || null,
-    }));
+      startedAt: load.startedAt || null,
+      completedAt: load.completedAt || null,
+      details: load.details || {},
+      payloads: load.payloads || [],
+      };
+    });
     res.json({
       success: true,
       count: formattedLoads.length,
@@ -565,22 +662,122 @@ export const updateLoad = async (req, res) => {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    console.log('🔍 Updating load with ID:', req.params.id);
-    const load = await Load.findByIdAndUpdate(req.params.id, req.body, {
+    const loadId = req.params.id;
+    const updateData = { ...req.body };
+
+    // Get current load to check driver and truck
+    const currentLoad = await Load.findById(loadId);
+    if (!currentLoad) {
+      return res.status(404).json({ success: false, message: "Load not found" });
+    }
+
+    // Handle nested details updates
+    if (updateData.details) {
+      if (typeof updateData.details === 'string') {
+        updateData.details = JSON.parse(updateData.details);
+      }
+    }
+
+    // Determine status based on driver and truck assignment
+    const driverId = updateData.details?.driver || currentLoad.details?.driver;
+    const vehicleId = updateData.details?.vehicle || currentLoad.details?.vehicle;
+    
+    // If both driver and truck are assigned, status should be "dispatched"
+    // If either is missing, status should be "planned"
+    if (driverId && vehicleId) {
+      // Both assigned - set to dispatched (unless already in a more advanced status)
+      if (!updateData.status || updateData.status === 'planned') {
+        updateData.status = 'dispatched';
+      }
+      // Set assignedAt if not already set
+      if (!currentLoad.assignedAt) {
+        updateData.assignedAt = new Date();
+      }
+    } else if (!driverId || !vehicleId) {
+      // Missing driver or truck - set to planned
+      if (!updateData.status || (updateData.status !== 'completed' && updateData.status !== 'delivered')) {
+        updateData.status = 'planned';
+      }
+    }
+
+    console.log('🔍 Updating load with ID:', loadId);
+    const load = await Load.findByIdAndUpdate(loadId, updateData, {
       new: true,
-    });
+      runValidators: true
+    })
+    .populate('details.driver', 'name phone email')
+    .populate('details.vehicle', 'plateNumber make model')
+    .populate('details.customer', 'name email phone');
 
     if (!load) {
-      console.log('❌ Load not found with ID:', req.params.id);
-      return res
-        .status(404)
-        .json({ success: false, message: "Load not found" });
+      console.log('❌ Load not found with ID:', loadId);
+      return res.status(404).json({ success: false, message: "Load not found" });
     }
 
     console.log('✅ Load updated successfully:', load._id);
     res.json({ success: true, message: "Load updated successfully", load });
   } catch (error) {
     console.error('❌ updateLoad error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ Assign Driver and Truck to Load
+export const assignDriverTruck = async (req, res) => {
+  try {
+    const { loadId } = req.params;
+    const { driverId, vehicleId, trailerId, planDate } = req.body;
+
+    if (!driverId || !vehicleId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Both driver and truck are required" 
+      });
+    }
+
+    const load = await Load.findById(loadId);
+    if (!load) {
+      return res.status(404).json({ success: false, message: "Load not found" });
+    }
+
+    // Update load with driver and truck
+    load.details.driver = driverId;
+    load.details.vehicle = vehicleId;
+    load.status = 'dispatched'; // Both assigned, set to dispatched
+    load.assignedAt = new Date();
+    
+    if (planDate) {
+      load.assignedAt = new Date(planDate);
+    }
+
+    await load.save();
+
+    // Populate before returning
+    await load.populate('details.driver', 'name phone email');
+    await load.populate('details.vehicle', 'plateNumber make model');
+    await load.populate('details.customer', 'name email phone');
+
+    // Log activity
+    if (req.user) {
+      try {
+        await ActivityLog.create({
+          performedBy: req.user._id || req.user.id,
+          action: `Load assigned to driver and truck`,
+          driver: driverId,
+          changeSummary: `Load ${load.details.internalId || loadId} assigned to driver and vehicle`,
+        });
+      } catch (activityError) {
+        console.error('Error logging activity:', activityError);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Driver and truck assigned successfully", 
+      load 
+    });
+  } catch (error) {
+    console.error('Error assigning driver and truck:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
