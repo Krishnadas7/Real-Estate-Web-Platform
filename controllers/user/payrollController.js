@@ -1,15 +1,25 @@
 // controllers/payrollController.js
 import { Payroll } from "../../models/hr/payrollSchemaModel.js";
+import mongoose from "mongoose";
 
 export const createPayroll = async (req, res) => {
   try {
-    const { userId, baseSalary, bonus = 0, deductions = 0, payDate, startDate, endDate } = req.body;
+    const { userId, baseSalary, bonus = 0, deductions = 0, payDate, startDate, endDate, loadIds, totalMiles, ratePerMile } = req.body;
+
+    console.log('📝 Creating payroll:', { userId, baseSalary, loadIds: loadIds?.length || 0, totalMiles, ratePerMile });
 
     // validation
-    if (!userId || baseSalary == null) {
+    if (!userId) {
       return res.status(400).json({
         success: false,
-        message: "Employee ID and base salary are required",
+        message: "Employee ID is required",
+      });
+    }
+
+    if (baseSalary == null || baseSalary === '' || (typeof baseSalary === 'string' && baseSalary.trim() === '')) {
+      return res.status(400).json({
+        success: false,
+        message: "Base salary is required",
       });
     }
 
@@ -28,6 +38,18 @@ export const createPayroll = async (req, res) => {
     // calculate total
     const totalSalary = base + extra - deduct;
 
+    // Convert loadIds to ObjectIds if provided
+    let loadsArray = [];
+    if (loadIds && Array.isArray(loadIds) && loadIds.length > 0) {
+      loadsArray = loadIds.map(id => {
+        if (mongoose.Types.ObjectId.isValid(id)) {
+          return new mongoose.Types.ObjectId(id);
+        }
+        return null;
+      }).filter(id => id !== null);
+      console.log(`✅ Converted ${loadsArray.length} load IDs to ObjectIds`);
+    }
+
     // create payroll
     const payroll = new Payroll({
       userId,
@@ -35,31 +57,44 @@ export const createPayroll = async (req, res) => {
       bonus: extra,
       deductions: deduct,
       totalSalary,
-      payDate: payDate,
-      startDate: startDate,
-      endDate: endDate
+      payDate: payDate || new Date(),
+      startDate: startDate || new Date(),
+      endDate: endDate || new Date(),
+      loads: loadsArray,
+      totalMiles: totalMiles ? Number(totalMiles) : 0,
+      ratePerMile: ratePerMile ? Number(ratePerMile) : 0
     });
 
     await payroll.save();
 
+    console.log('✅ Payroll created successfully:', payroll._id);
+
     res.status(201).json({
       success: true,
       message: "Payroll created successfully",
-      data:payroll,
+      data: payroll,
     });
   } catch (err) {
-    console.error("Error creating payroll:", err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("❌ Error creating payroll:", err);
+    res.status(500).json({ 
+      success: false, 
+      message: err.message,
+      error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
 
 export const getPayrolls = async (req, res) => {
   try {
-    const payrolls = await Payroll.find().populate("userId", "name role");
-    res.json({ success: true, data:payrolls });
+    const payrolls = await Payroll.find()
+      .populate("userId", "name role")
+      .populate("loads", "details.internalId route.selectPickup route.selectDropOff route.multipleDropOffs route.wayPoints completedAt assignedAt startedAt");
+    
+    res.json({ success: true, data: payrolls });
   } catch (err) {
-    res.status(500).json({success:false, error: err.message });
+    console.error("❌ Error fetching payrolls:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 

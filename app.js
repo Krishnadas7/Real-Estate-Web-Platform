@@ -26,6 +26,8 @@ import { swaggerUi, specs } from "./swagger/swagger.js";
 import { fileUploadErrorHandler } from "./middleware/fileUploadErrorHandler.js";
 import { createPaymentSession } from "./controllers/user/paymentController.js";
 import { handleStripeWebhook } from "./controllers/user/paymentWebhook.js";
+import { authMiddleware } from "./middleware/authMiddleware.js";
+import { getCurrentUserProfile, updateCurrentUserProfile, changePassword } from "./controllers/user/userController.js";
 
 // (async () => {
 //   await syncVehiclesFromGeotab();
@@ -151,6 +153,11 @@ app.post("/api/v1/login", async (req, res) => {
     res.json({success:false,message:error.message})
   }
 });
+
+// ✅ Current User Profile Routes (for all authenticated users)
+app.get("/api/v1/auth/me", authMiddleware, getCurrentUserProfile);
+app.put("/api/v1/auth/me", authMiddleware, updateCurrentUserProfile);
+app.put("/api/v1/auth/change-password", authMiddleware, changePassword);
 
 // ✅ Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {

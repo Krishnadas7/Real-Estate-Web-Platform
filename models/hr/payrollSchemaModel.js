@@ -14,6 +14,10 @@ const payrollSchema = new mongoose.Schema({
   payDate: { type: Date, default: Date.now },
   startDate: { type: Date, default: Date.now },
   endDate: { type: Date, default: Date.now },
+  // Driver-specific fields
+  loads: [{ type: mongoose.Schema.Types.ObjectId, ref: "Load" }], // Loads included in this payroll
+  totalMiles: { type: Number, default: 0 },
+  ratePerMile: { type: Number, default: 0 },
 }, { timestamps: true });
 
 export const Payroll = mongoose.model("Payroll", payrollSchema);

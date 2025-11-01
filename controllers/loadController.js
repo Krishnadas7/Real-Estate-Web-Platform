@@ -7,6 +7,7 @@ import ActivityLog from "../models/activitylogModel.js";
 import Admin from "../models/adminModel.js";
 import axios from "axios";
 import { Shift } from "../models/driver/shiftModel.js";
+import { haversineDistance } from "../utils/distance.js";
 
 export const totalLoadsCount = async (req,res) =>{
   try {
@@ -24,17 +25,41 @@ export const totalLoadsCount = async (req,res) =>{
 export const getCompletedLoadsByDriver = async (req, res) => {
   try {
     const driverId = req.params.id;
+    const { startDate, endDate } = req.query; // Optional date range filtering
+
+    console.log('🔍 getCompletedLoadsByDriver called:', { driverId, startDate, endDate });
 
     if (!mongoose.Types.ObjectId.isValid(driverId)) {
       return res.status(400).json({ success: false, message: "Invalid driver ID" });
     }
 
+    // Get driver to fetch mileRate
+    const driver = await User.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ success: false, message: "Driver not found" });
+    }
+
+    const mileRate = driver.details?.mileRate || 0;
+    console.log('💰 Driver mile rate:', mileRate);
+
+    // Build match query
+    const matchQuery = {
+      "details.driver": new mongoose.Types.ObjectId(driverId),
+      status: "completed"
+    };
+
+    // Add date filtering if provided
+    if (startDate || endDate) {
+      matchQuery.completedAt = {};
+      if (startDate) matchQuery.completedAt.$gte = new Date(startDate);
+      if (endDate) matchQuery.completedAt.$lte = new Date(endDate);
+    }
+
+    console.log('📊 Match query:', JSON.stringify(matchQuery, null, 2));
+
     const completedLoads = await Load.aggregate([
       {
-        $match: {
-          "details.driver": new mongoose.Types.ObjectId(driverId),
-          status: "completed"
-        }
+        $match: matchQuery
       },
       // ✅ Join driver info
       {
@@ -78,6 +103,8 @@ export const getCompletedLoadsByDriver = async (req, res) => {
           completedAt: 1,
           "route.selectPickup": 1,
           "route.selectDropOff": 1,
+          "route.multipleDropOffs": 1,
+          "route.wayPoints": 1,
           "payloads.itemName": 1,
           "payloads.measurementAndWeight": 1,
 
@@ -96,10 +123,63 @@ export const getCompletedLoadsByDriver = async (req, res) => {
       }
     ]);
 
+    console.log(`📦 Found ${completedLoads.length} completed loads`);
+
+    // Calculate distance and earnings for each load
+    const loadsWithCalculations = completedLoads.map(load => {
+      let distance = 0;
+
+      // Calculate distance based on route type
+      if (load.route?.multipleDropOffs && load.route?.wayPoints) {
+        // Multiple waypoints - calculate cumulative distance
+        for (let i = 0; i < load.route.wayPoints.length - 1; i++) {
+          const start = load.route.wayPoints[i].address;
+          const end = load.route.wayPoints[i + 1].address;
+          if (start && end) {
+            distance += haversineDistance(
+              parseFloat(start.latitude),
+              parseFloat(start.longitude),
+              parseFloat(end.latitude),
+              parseFloat(end.longitude)
+            );
+          }
+        }
+      } else if (load.route?.selectPickup && load.route?.selectDropOff) {
+        // Single pickup/dropoff route
+        distance = haversineDistance(
+          parseFloat(load.route.selectPickup.latitude),
+          parseFloat(load.route.selectPickup.longitude),
+          parseFloat(load.route.selectDropOff.latitude),
+          parseFloat(load.route.selectDropOff.longitude)
+        );
+      }
+
+      // Convert km to miles (1 km = 0.621371 miles)
+      const distanceInMiles = distance * 0.621371;
+      
+      // Calculate earnings
+      const earnings = distanceInMiles * mileRate;
+
+      return {
+        ...load,
+        distance: Math.round(distance), // km
+        distanceInMiles: Math.round(distanceInMiles),
+        mileRate: mileRate,
+        earnings: earnings.toFixed(2)
+      };
+    });
+
     res.json({
       success: true,
       message: "Completed loads fetched successfully",
-      data: completedLoads
+      data: loadsWithCalculations,
+      summary: {
+        totalLoads: loadsWithCalculations.length,
+        totalDistanceKm: Math.round(loadsWithCalculations.reduce((sum, l) => sum + (l.distance || 0), 0)),
+        totalDistanceMiles: Math.round(loadsWithCalculations.reduce((sum, l) => sum + (l.distanceInMiles || 0), 0)),
+        totalEarnings: parseFloat(loadsWithCalculations.reduce((sum, l) => sum + parseFloat(l.earnings || 0), 0).toFixed(2)),
+        ratePerMile: mileRate
+      }
     });
   } catch (err) {
     res.status(500).json({
