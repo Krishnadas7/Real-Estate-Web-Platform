@@ -1,6 +1,6 @@
 // controllers/complianceController.js
 import VehicleDocuments from "../../models/driver/vehicleDocumentsModel.js";
-import { DriverDocument } from "../../models/driver/driverDocumentModel.js";
+import { EmployeeDocument } from "../../models/driver/employeeDocumentModel.js";
 import { CvsaInspection } from "../../models/cvsaInspectionModel.js";
 import { Ticket } from "../../models/ticketModel.js";
 import { Vehicle } from "../../models/driver/vehicleModel.js";
@@ -23,11 +23,11 @@ export const getComplianceSummary = async (req, res) => {
       complianceRate: totalVehiclesDocs > 0 ? Math.round((validVehicleDocs / totalVehiclesDocs) * 100) : 0,
     };
 
-    // --- DRIVER DOCUMENTS ---
-    const totalDriverDocs = await DriverDocument.countDocuments();
-    const validDriverDocs = await DriverDocument.countDocuments({ status: "completed" });
-    const expiredDriverDocs = await DriverDocument.countDocuments({ status: "expired" });
-    const expiringSoonDriverDocs = await DriverDocument.countDocuments({ status: "expiring-soon" });
+    // --- EMPLOYEE DOCUMENTS (INCLUDING DRIVERS) ---
+    const totalDriverDocs = await EmployeeDocument.countDocuments();
+    const validDriverDocs = await EmployeeDocument.countDocuments({ status: "valid" });
+    const expiredDriverDocs = await EmployeeDocument.countDocuments({ status: "expired" });
+    const expiringSoonDriverDocs = await EmployeeDocument.countDocuments({ status: "expiring-soon" });
 
     const driverCompliance = {
       total: totalDriverDocs,

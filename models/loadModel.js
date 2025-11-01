@@ -103,6 +103,35 @@ const loadSchema = new mongoose.Schema(
       enum: ["planned", "dispatched", "in-delivery", "delivered", "completed"],
       default:'planned'
     },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "due", "paid"],
+      default: "pending"
+    },
+    paymentDetails: {
+      paymentMethod: { type: String },
+      paymentReference: { type: String },
+      paymentDate: { type: Date },
+      paidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      notes: { type: String }
+    },
+    deliveryDocuments: {
+      bol: {
+        url: { type: String },
+        uploadedAt: { type: Date },
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+      },
+      billOfSale: {
+        url: { type: String },
+        uploadedAt: { type: Date },
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+      },
+      pod: {
+        url: { type: String },
+        uploadedAt: { type: Date },
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+      }
+    },
     assignedAt: { type: Date, default: null },
   startedAt: { type: Date},
   completedAt: { type: Date},

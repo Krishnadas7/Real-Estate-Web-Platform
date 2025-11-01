@@ -6,7 +6,7 @@ import { Invoice } from "../../models/hr/invoiceModel.js";
 import moment from "moment";
 import HosLog from "../../models/driver/hosManagement.js";
 import VehicleDocuments from "../../models/driver/vehicleDocumentsModel.js";
-import { DriverDocument } from "../../models/driver/driverDocumentModel.js";
+import { EmployeeDocument } from "../../models/driver/employeeDocumentModel.js";
 import { Trailer } from "../../models/driver/trailerModel.js";
 
 
@@ -192,13 +192,13 @@ export const getRecentAlerts = async (req, res) => {
     const today = new Date();
     const thirtyDaysFromNow = moment().add(30, "days").toDate();
 
-    // 1️⃣ Driver documents expiring in next 30 days
-    const driverDocs = await DriverDocument.find({
+    // 1️⃣ Employee documents (including drivers) expiring in next 30 days
+    const driverDocs = await EmployeeDocument.find({
       expiryDate: { $lte: thirtyDaysFromNow },
-      status: { $in: ["expiring-soon", "pending"] }
+      status: { $in: ["expiring-soon", "pending", "valid"] }
     })
-      .populate("driver", "name email") // include driver details
-      .select("documentType documentNumber expiryDate status driver");
+      .populate("employee", "name email") // include employee details
+      .select("documentType documentNumber expiryDate status employee");
 
     // 2️⃣ Vehicle documents expiring in next 30 days
     const vehicleDocs = await VehicleDocuments.find({
@@ -225,13 +225,13 @@ export const getVehicleAndWorkOrderStats = async (req, res) => {
   try {
     const companyFilter = req.user.company ? { company: req.user.company } : {};
 
-    // Count total vehicles
-    const totalVehicles = await Vehicle.countDocuments(companyFilter);
+    // Count total vehicles (Vehicle model doesn't have company field, so don't filter)
+    const totalVehicles = await Vehicle.countDocuments();
 
     // Count active (in-progress) work orders
     const activeWorkOrders = await WorkOrder.countDocuments({ status: "inprogress" });
 
-    // Count total trailers
+    // Count total trailers (Trailer model has company field, so filter)
     const totalTrailers = await Trailer.countDocuments(companyFilter);
 
     // Count trailers by status

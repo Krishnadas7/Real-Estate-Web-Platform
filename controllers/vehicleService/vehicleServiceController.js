@@ -1,6 +1,25 @@
 import { VehicleService } from "../../models/driver/vehicleService.js";
 import { Vehicle } from "../../models/driver/vehicleModel.js";
 
+// Service intervals in KM (when to schedule next service)
+const SERVICE_INTERVALS = {
+  "oil-change": 10000,
+  "tire-rotation": 15000,
+  "brake-inspection": 20000,
+  "general-maintenance": 25000,
+  "other": 30000,
+  "inspection": 365 // days
+};
+
+// Mapping from vehicle model's lastService field names (camelCase) to serviceType (hyphen-case)
+const SERVICE_KEY_TO_TYPE = {
+  "oilChange": "oil-change",
+  "tireRotation": "tire-rotation",
+  "brakeInspection": "brake-inspection",
+  "generalMaintenance": "general-maintenance",
+  "other": "other",
+  "inspection": "inspection"
+};
 
 // {
 //   "vehicleId": "67100d48f2e54b1e8b7e55d2",
@@ -11,6 +30,38 @@ import { Vehicle } from "../../models/driver/vehicleModel.js";
 //   "assignedMechanic": "67100d55f2e54b1e8b7e55f1",
 //   "description": "Engine oil due for replacement"
 // }
+
+// ✅ Calculate upcoming services based on lastService and odometer
+const calculateUpcomingServices = (vehicle) => {
+  const upcomingServices = [];
+  const currentOdometer = vehicle.odometer || 0;
+  
+  Object.keys(vehicle.lastService || {}).forEach(serviceKey => {
+    const serviceType = SERVICE_KEY_TO_TYPE[serviceKey];
+    const lastServiceData = vehicle.lastService[serviceKey];
+    
+    if (serviceType && lastServiceData && lastServiceData.mileage) {
+      const lastMileage = lastServiceData.mileage || 0;
+      const interval = SERVICE_INTERVALS[serviceType];
+      
+      if (interval && interval !== 365) { // Skip inspection (days, not km)
+        const nextMileage = lastMileage + interval;
+        const remainingKm = nextMileage - currentOdometer;
+        const dueDate = new Date(lastServiceData.date || Date.now());
+        dueDate.setDate(dueDate.getDate() + 90); // 90 days default
+        
+        upcomingServices.push({
+          serviceType: serviceType,
+          status: remainingKm < 0 ? "overdue" : "upcoming",
+          dueDate: dueDate,
+          dueMileage: nextMileage
+        });
+      }
+    }
+  });
+  
+  return upcomingServices;
+};
 
 // ✅ CREATE SERVICE
 export const createVehicleService = async (req, res) => {
@@ -34,7 +85,7 @@ export const createVehicleService = async (req, res) => {
       console.log("❌ Vehicle not found:", vehicleId);
       return res.status(404).json({ success: false, message: "Vehicle not found" });
     }
-    console.log("✅ Vehicle found:", vehicle.vehicleNumber);
+    console.log("✅ Vehicle found:", vehicle.internalId);
 
     const newService = new VehicleService({
       vehicleId,
@@ -96,24 +147,73 @@ export const updateServiceStatus = async (req, res) => {
     console.log("🚀 UPDATE SERVICE STATUS API CALLED");
     console.log("📝 Service ID:", req.params.id);
     console.log("📝 New Status:", req.body.status);
+    console.log("📝 Additional Data:", req.body);
     
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, performedBy, notes } = req.body;
 
     if (!["pending", "in-progress", "completed"].includes(status)) {
       console.log("❌ Invalid status value:", status);
       return res.status(400).json({ success: false, message: "Invalid status value" });
     }
 
-    const updatedService = await VehicleService.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-
+    const updatedService = await VehicleService.findById(id).populate("vehicleId");
     if (!updatedService) {
       console.log("❌ Service not found:", id);
       return res.status(404).json({ success: false, message: "Service not found" });
+    }
+
+    // Update service status
+    updatedService.status = status;
+    await updatedService.save();
+
+    // ✅ If service is completed, update vehicle's lastService and serviceHistory
+    if (status === "completed") {
+      const vehicle = updatedService.vehicleId;
+      const serviceType = updatedService.serviceType;
+      const currentOdometer = vehicle.odometer || 0;
+      
+      // Convert hyphen-case serviceType to camelCase serviceKey
+      const serviceKey = Object.keys(SERVICE_KEY_TO_TYPE).find(
+        key => SERVICE_KEY_TO_TYPE[key] === serviceType
+      );
+      
+      console.log(`🔧 Updating vehicle ${vehicle.internalId} with completed ${serviceType} service`);
+
+      // Ensure lastService exists
+      if (!vehicle.lastService) {
+        vehicle.lastService = {};
+      }
+
+      // Update lastService (create if doesn't exist)
+      if (serviceKey) {
+        if (!vehicle.lastService[serviceKey]) {
+          vehicle.lastService[serviceKey] = {};
+        }
+        vehicle.lastService[serviceKey].mileage = currentOdometer;
+        vehicle.lastService[serviceKey].date = new Date();
+      }
+
+      // Add to serviceHistory
+      const historyEntry = {
+        serviceType: serviceType,
+        status: "completed",
+        performedBy: performedBy || req.user?._id,
+        performedAt: new Date(),
+        mileageAtService: currentOdometer,
+        notes: notes || ""
+      };
+      
+      if (!vehicle.serviceHistory) {
+        vehicle.serviceHistory = [];
+      }
+      vehicle.serviceHistory.push(historyEntry);
+
+      // Recalculate upcoming services
+      vehicle.upcomingServices = calculateUpcomingServices(vehicle);
+      
+      await vehicle.save();
+      console.log("✅ Vehicle service history and upcoming services updated");
     }
 
     console.log("✅ Service status updated successfully:", id);
@@ -168,7 +268,7 @@ export const listVehicleServices = async (req, res) => {
     console.log("🔍 Applied Filters:", filter);
 
     const services = await VehicleService.find(filter)
-      .populate("vehicleId", "vehicleNumber model")
+      .populate("vehicleId", "internalId plateNumber model")
       .sort({ createdAt: -1 });
 
     console.log("✅ Found services:", services.length);

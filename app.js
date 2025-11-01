@@ -7,10 +7,9 @@ import jwt from 'jsonwebtoken'
 import path from "path";
 import { User } from "./models/driver/userModel.js";
 import { updateDocumentStatuses } from "./controllers/employee/employeeDocumentController.js";
-import { updateDriverDocumentStatuses } from "./controllers/driverDocumentController.js";
 import { syncVehiclesFromGeotab } from "./jobs/vehicleSync.js";
 import { runDocumentStatusUpdateJob } from "./jobs/documentStatusUpdate.js";
-import { runDriverDocumentStatusUpdateJob } from "./jobs/driverDocumentStatusUpdate.js";
+import { runVehicleServiceUpdateJob } from "./jobs/vehicleServiceUpdate.js";
 // import xss from "xss-clean";
 // import mongoSanitize from "express-mongo-sanitize";
 import morgan from "morgan";
@@ -128,13 +127,6 @@ app.post("/api/v1/login", async (req, res) => {
             // Don't fail login if document update fails
         }
         
-        try {
-            console.log('🔄 Updating driver document statuses on login...');
-            await updateDriverDocumentStatuses();
-        } catch (error) {
-            console.error('❌ Error updating driver document statuses on login:', error);
-            // Don't fail login if document update fails
-        }
     }
 
     // Generate JWT
@@ -248,6 +240,8 @@ app.use((err, req, res, next) => {
 
 // ✅ Schedule document status update jobs
 runDocumentStatusUpdateJob();
-runDriverDocumentStatusUpdateJob();
+
+// ✅ Schedule vehicle upcoming services update job
+runVehicleServiceUpdateJob();
 
 

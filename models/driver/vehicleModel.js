@@ -85,7 +85,7 @@ const vehicleSchema = new mongoose.Schema(
           type: String, 
           enum: ["oil-change","tire-rotation","brake-inspection","general-maintenance","other","inspection"] 
         },
-        status: { type: String, enum: ["Overdue", "Upcoming"] },
+        status: { type: String, enum: ["overdue", "upcoming"] },
         dueDate: { type: Date },
         dueMileage: { type: Number }
       }
@@ -96,7 +96,7 @@ const vehicleSchema = new mongoose.Schema(
           type: String, 
           enum: ["oil-change","tire-rotation","brake-inspection","general-maintenance","other","inspection"] 
         },
-        status: { type: String, enum: ["completed","vverdue","upcoming"] },
+        status: { type: String, enum: ["completed", "overdue", "upcoming"] },
         performedBy: { type: mongoose.Types.ObjectId, ref: "User" },
         performedAt: { type: Date },
         mileageAtService: { type: Number },

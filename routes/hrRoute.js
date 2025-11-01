@@ -26,15 +26,6 @@ import {
   updateDocument
 } from '../controllers/vehicleDocumentController.js'
 import {
-  deleteDriverDocument,
-  getAllDocumentsWithDriver,
-  getDriverDocuments,
-  updateDriverDocument,
-  uploadDriverDocument,
-  getExpiringDriverDocuments,
-  updateDriverDocumentStatuses
-} from '../controllers/driverDocumentController.js'
-import {
   createPayroll,
   deletePayroll,
   getPayrolls,
@@ -137,48 +128,6 @@ hrRoute.get(
   authMiddleware,
   authorizeRoles('admin', 'superadmin', 'hr'),
   listDocuments
-)
-
-// Driver documents
-hrRoute.post(
-  '/driver-document/:driverId',
-  authMiddleware,
-  authorizeRoles('admin', 'superadmin', 'hr'),
-  FileUpload.single('document'),
-  uploadDriverDocument
-)
-hrRoute.get(
-  '/driver-document',
-  authMiddleware,
-  authorizeRoles('admin', 'superadmin', 'hr'),
-  getAllDocumentsWithDriver
-) // All drivers + documents
-hrRoute.get(
-  '/driver-document/:driverId',
-  authMiddleware,
-  authorizeRoles('admin', 'superadmin', 'hr'),
-  getDriverDocuments
-)
-
-// Driver documents expiring soon
-hrRoute.get(
-  '/driver-document-expiring',
-  authMiddleware,
-  authorizeRoles('admin', 'superadmin', 'hr'),
-  getExpiringDriverDocuments
-) // One driver + docs
-hrRoute.put(
-  '/driver-document/:id',
-  authMiddleware,
-  authorizeRoles('admin', 'superadmin', 'hr'),
-  FileUpload.single('document'),
-  updateDriverDocument
-)
-hrRoute.delete(
-  '/driver-document/:id',
-  authMiddleware,
-  authorizeRoles('admin', 'superadmin', 'hr'),
-  deleteDriverDocument
 )
 
 // hr and payroll

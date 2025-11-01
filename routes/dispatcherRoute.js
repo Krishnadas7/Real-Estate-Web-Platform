@@ -15,7 +15,12 @@ import {
   getAllLoads,
   getLoadById,
   updateLoad,
-  assignDriverTruck
+  assignDriverTruck,
+  getDeliveryLoads,
+  uploadDeliveryDocument,
+  updatePaymentStatus,
+  getDispatcherDashboard,
+  getRouteAnalysis
 } from '../controllers/loadController.js'
 import { loadValidation } from '../validations/load/load.validation.js'
 import {
@@ -90,6 +95,21 @@ import {
   updateFuelReport
 } from '../controllers/fuelReportsController.js'
 export const dispatcherRoute = express.Router()
+
+// Dispatcher Dashboard
+dispatcherRoute.get(
+  '/dashboard',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  getDispatcherDashboard
+)
+
+dispatcherRoute.get(
+  '/routes',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  getRouteAnalysis
+)
 
 // fuel
 dispatcherRoute.post(
@@ -492,6 +512,27 @@ dispatcherRoute.delete(
   authMiddleware,
   authorizeRoles('admin', 'superadmin', 'dispatcher'),
   deleteLoad
+)
+
+// Delivery management
+dispatcherRoute.get(
+  '/delivery-loads',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  getDeliveryLoads
+)
+dispatcherRoute.post(
+  '/load/:loadId/delivery-document/:documentType',
+  FileUpload.single('document'),
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  uploadDeliveryDocument
+)
+dispatcherRoute.post(
+  '/load/:loadId/payment',
+  authMiddleware,
+  authorizeRoles('admin', 'superadmin', 'dispatcher'),
+  updatePaymentStatus
 )
 
 // Issue management
