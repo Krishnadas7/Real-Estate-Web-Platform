@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
       status:{type:String,enum:['active','inactive']},
       company: { type: mongoose.Types.ObjectId, ref: "CompanySettings"},
       internalId:{type:String, required: true, unique: true},
+      stripeCustomerId:{type:String, default: null},
       location:{
         address:{type:String},
         longitude:{type:String},latitude:{type:String}},

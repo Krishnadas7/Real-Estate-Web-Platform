@@ -48,6 +48,13 @@ import {
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { authorizeRoles } from '../middleware/authRoles.js'
 import {
+  getAllPlans as getAdminPlans,
+  getMySubscription,
+  getMySubscriptions,
+  createCheckoutSession,
+  cancelSubscription
+} from '../controllers/subscriptionController.js'
+import {
   getLiveVehicles,
   getVehicleDetails,
   getVehicleList
@@ -619,3 +626,10 @@ adminRoute.get("/load/stats", authMiddleware, authorizeRoles('admin', 'superadmi
 adminRoute.get("/driver/safety-stats", authMiddleware, authorizeRoles('admin', 'superadmin'), getSafetyStats);
 adminRoute.get("/activity-log/recent", authMiddleware, authorizeRoles('admin', 'superadmin'), getRecentDriverActivities);
 adminRoute.get("/driver-activity", authMiddleware, authorizeRoles('admin', 'superadmin'), getDriverActivities);
+
+// Subscription & Plan Routes
+adminRoute.get("/plans", authMiddleware, authorizeRoles('admin', 'superadmin'), getAdminPlans);
+adminRoute.get("/subscription", authMiddleware, authorizeRoles('admin', 'superadmin'), getMySubscription);
+adminRoute.get("/subscriptions", authMiddleware, authorizeRoles('admin', 'superadmin'), getMySubscriptions);
+adminRoute.post("/subscription/checkout", authMiddleware, authorizeRoles('admin', 'superadmin'), createCheckoutSession);
+adminRoute.post("/subscription/:subscriptionId/cancel", authMiddleware, authorizeRoles('admin', 'superadmin'), cancelSubscription);

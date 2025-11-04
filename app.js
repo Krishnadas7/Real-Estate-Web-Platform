@@ -27,6 +27,7 @@ import { swaggerUi, specs } from "./swagger/swagger.js";
 import { fileUploadErrorHandler } from "./middleware/fileUploadErrorHandler.js";
 import { createPaymentSession } from "./controllers/user/paymentController.js";
 import { handleStripeWebhook } from "./controllers/user/paymentWebhook.js";
+import { handleSubscriptionWebhook } from "./controllers/subscriptionWebhook.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
 import { getCurrentUserProfile, updateCurrentUserProfile, changePassword } from "./controllers/user/userController.js";
 
@@ -224,6 +225,7 @@ app.post('/api/v1/webhook-test', (req, res) => {
 
 // ✅ Webhook routes (must be before 404 handler)
 app.post("/api/v1/webhook", express.raw({ type: "application/json" }), handleStripeWebhook);
+app.post("/api/v1/webhook/subscription", express.raw({ type: "application/json" }), handleSubscriptionWebhook);
 
 // ✅ Logging
 app.use(
