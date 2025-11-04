@@ -8,6 +8,7 @@ import { getNotificationsByDriver } from '../controllers/activitylogController.j
 import { listVendors, selectedVendor } from '../controllers/vendorController.js'
 import { getAllTrailers, selectedTrailor } from '../controllers/trailerController.js'
 import { createFeedback } from '../controllers/feedbackController.js'
+import { getDriverDocuments, getDriverDocumentById, uploadDriverDocument, updateDriverDocument, deleteDriverDocument } from '../controllers/driver/driverDocumentController.js'
 export const driverRoute = express.Router()
 
 driverRoute.post('/create',FileUpload.single('file'),registerDriver)
@@ -16,7 +17,7 @@ driverRoute.post('/login',loginDriver)
 
 // notification
 
-driverRoute.get("/notifications", getNotificationsByDriver);
+driverRoute.get("/notifications", driverAuth, getNotificationsByDriver);
 
 
 
@@ -44,9 +45,12 @@ driverRoute.put("/change-password", driverAuth, changeDriverPassword);
 
 driverRoute.post("/feedback", driverAuth, createFeedback);
 
-
-
-
+// Documents
+driverRoute.get("/documents", driverAuth, getDriverDocuments);
+driverRoute.get("/documents/:id", driverAuth, getDriverDocumentById);
+driverRoute.post("/documents", driverAuth, FileUpload.single('documentFile'), uploadDriverDocument);
+driverRoute.put("/documents/:id", driverAuth, FileUpload.single('documentFile'), updateDriverDocument);
+driverRoute.delete("/documents/:id", driverAuth, deleteDriverDocument);
 
 
 

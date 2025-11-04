@@ -1,8 +1,23 @@
 import multer from "multer";
 
-// Global error handler
+// File upload error handler - only handles file upload related errors
 export const fileUploadErrorHandler = (err, req, res, next) => {
-  console.error("Error:", err);
+  // Only handle file upload errors (multer errors or file-related errors)
+  const isFileUploadError = 
+    err instanceof multer.MulterError ||
+    (err.message && (
+      err.message.includes("Invalid file type") ||
+      err.message.includes("Image size must be less than") ||
+      err.message.includes("Video size must be less than") ||
+      err.message.includes("Media upload")
+    ));
+
+  if (!isFileUploadError) {
+    // Not a file upload error, pass to next error handler
+    return next(err);
+  }
+
+  console.error("File Upload Error:", err);
 
   // Multer-specific errors (file size, unexpected field, etc.)
   if (err instanceof multer.MulterError) {
@@ -32,7 +47,7 @@ export const fileUploadErrorHandler = (err, req, res, next) => {
     });
   }
 
-  // General fallback
+  // General fallback for file upload errors
   return res.status(500).json({
     success: false,
     message: "Media upload failed, please try after some time",

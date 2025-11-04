@@ -6,7 +6,7 @@ const driverActivitySchema = new mongoose.Schema(
     load: { type: mongoose.Types.ObjectId, ref: "Load", default: null }, // optional, if activity is tied to a load
     activityType: { 
       type: String, 
-      enum: ['load_started', 'load_completed'], 
+      enum: ['load_started', 'load_delivered', 'load_completed'], 
       required: true 
     },
     location: {

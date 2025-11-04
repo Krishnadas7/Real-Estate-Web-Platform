@@ -1,24 +1,37 @@
 import ActivityLog from "../models/activitylogModel.js";
+import mongoose from "mongoose";
 
 export const getNotificationsByDriver = async (req, res) => {
+  let driverId = null;
+  let driverObjectId = null;
+  
   try {
-    const driverId  = req.user._id;
+    // Ensure user is authenticated (should be set by driverAuth middleware)
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: "Unauthorized. Please login again." });
+    }
+
+    driverId = req.user._id;
     const { page = 1 } = req.query; // default page = 1
     const limit = 10;
     const skip = (page - 1) * limit;
 
-    if (!driverId) {
-      return res.status(400).json({ success: false, message: "Driver ID is required" });
-    }
+    // Convert driverId to ObjectId if it's a string
+    driverObjectId = typeof driverId === 'string' 
+      ? new mongoose.Types.ObjectId(driverId) 
+      : driverId;
 
-    const notifications = await ActivityLog.find({ driver: driverId })
-      .populate("performedBy", "name email")
-      .populate("user", "name email")
+    console.log('Fetching notifications for driver:', driverObjectId.toString());
+
+    // Don't populate "performedBy" if it references "admin" model that doesn't exist
+    // Just fetch notifications without populate for now
+    const notifications = await ActivityLog.find({ driver: driverObjectId })
       .sort({ createdAt: -1 }) // newest first
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Use lean() to get plain JS objects
 
-    const total = await ActivityLog.countDocuments({ driver: driverId });
+    const total = await ActivityLog.countDocuments({ driver: driverObjectId });
 
     return res.status(200).json({
       success: true,
@@ -31,6 +44,16 @@ export const getNotificationsByDriver = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching notifications:", error);
-    return res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      driverId: driverId?.toString() || driverObjectId?.toString() || 'unknown',
+      errorName: error.name
+    });
+    return res.status(500).json({ 
+      success: false, 
+      message: "Server error",
+      error: error.message || "Unknown error"
+    });
   }
 };

@@ -16,6 +16,7 @@ import morgan from "morgan";
 import { superAdminRoute } from "./routes/superAdminRoute.js";
 import { adminRoute } from "./routes/adminRoute.js";
 import { driverRoute } from "./routes/driverRoute.js";
+import { getPublicConfig } from "./controllers/configController.js";
 import { hrRoute } from "./routes/hrRoute.js";
 import { dispatcherRoute } from "./routes/dispatcherRoute.js";
 import employeeRoute from "./routes/employeeRoute.js";
@@ -55,12 +56,12 @@ app.use(
     crossOriginResourcePolicy: false, // Disable for development
   })
 );
-// Configure CORS with proper headers for static files
+// Configure CORS with proper headers for static files and socket.io
 app.use(cors({
-  origin: true, // Allow all origins in development
+  origin: "*", // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', '*'],
   exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar']
 }));
 
@@ -97,8 +98,16 @@ app.use(hpp()); // Prevent HTTP Parameter Pollution
 // app.use(mongoSanitize()); // Prevent NoSQL injection
 
 app.get("/api/v1/health", (req, res) => {
-  res.send("health is fine!");
+  res.json({ 
+    status: "ok", 
+    message: "health is fine!",
+    timestamp: new Date().toISOString(),
+    server: "BlackRiver Backend"
+  });
 });
+
+// Public config endpoint (no auth required)
+app.get("/api/v1/config", getPublicConfig);
 
 // Test route for image access
 app.get("/api/v1/test-image/:filename", (req, res) => {

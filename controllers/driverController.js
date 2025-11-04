@@ -7,8 +7,17 @@ import jwt from "jsonwebtoken";
 // Change Password
 export const changeDriverPassword = async (req, res) => {
   try {
-    const  userId  = req.user._id; 
+    // Use req.driver if available (from driverAuth middleware), otherwise fallback to req.user
+    const userId = req.driver?._id || req.user?._id;
+    
+    if (!userId) {
+      console.error('❌ No user ID found in request');
+      return res.status(401).json({success:false, message: "User not authenticated" });
+    }
+
     const { currentPassword, newPassword } = req.body;
+
+    console.log('🔐 Change password request:', { userId: userId.toString(), hasCurrentPassword: !!currentPassword, hasNewPassword: !!newPassword });
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({success:false, message: "Both current and new password are required" });
@@ -23,6 +32,7 @@ export const changeDriverPassword = async (req, res) => {
     // Compare current password
     const isMatch = await comparePassword(currentPassword, user.password);
     if (!isMatch) {
+      console.log('❌ Password mismatch for user:', userId.toString());
       return res.status(400).json({success:false, message: "Current password does not match" });
     }
 
@@ -31,8 +41,10 @@ export const changeDriverPassword = async (req, res) => {
 
     await user.save();
 
+    console.log('✅ Password changed successfully for user:', userId.toString());
     res.status(200).json({success:true, message: "Password changed successfully" });
   } catch (error) {
+    console.error('❌ Error changing password:', error);
     res.status(500).json({success:false, message: "Error changing password", error: error.message });
   }
 };

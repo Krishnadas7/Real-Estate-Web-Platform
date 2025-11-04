@@ -382,9 +382,9 @@ export const updateLoadStatus = async (req, res) => {
 
     // Validate status transitions
     const validTransitions = {
-      'planned': ['dispatched'],
+      'planned': ['dispatched', 'in-delivery'], // allow direct start for convenience
       'dispatched': ['in-delivery', 'planned'], // can go back to planned if unassigned
-      'in-delivery': ['delivered', 'dispatched'],
+      'in-delivery': ['delivered', 'dispatched', 'completed'], // allow direct completion
       'delivered': ['completed'],
       'completed': [] // terminal state
     };
@@ -420,6 +420,8 @@ export const updateLoadStatus = async (req, res) => {
           'completed': 'load_completed'
         };
         
+        // Note: 'load_delivered' activity type may need to be added to driverActivityModel if not present
+        
         if (activityTypeMap[status]) {
           await logDriverActivity({
             driverId: load.details.driver,
@@ -432,8 +434,24 @@ export const updateLoadStatus = async (req, res) => {
             loadId: load._id
           });
         }
+
+        // Create notification (ActivityLog) for driver
+        const notificationMessages = {
+          'in-delivery': `Load ${load.details?.internalId || load._id.toString().slice(-6)} has been started`,
+          'delivered': `Load ${load.details?.internalId || load._id.toString().slice(-6)} has been delivered successfully`,
+          'completed': `Load ${load.details?.internalId || load._id.toString().slice(-6)} has been completed. Great job!`
+        };
+
+        if (notificationMessages[status]) {
+          await ActivityLog.create({
+            driver: load.details.driver,
+            action: status === 'completed' ? 'Load Completed' : status === 'delivered' ? 'Load Delivered' : 'Load Started',
+            changeSummary: notificationMessages[status],
+            performedBy: null // System-generated notification
+          });
+        }
       } catch (activityError) {
-        console.error('Error logging driver activity:', activityError);
+        console.error('Error logging driver activity or creating notification:', activityError);
         // Don't fail the request if activity logging fails
       }
     }
@@ -448,13 +466,14 @@ export const updateLoadStatus = async (req, res) => {
   }
 };
 
-// === Active Loads (In Delivery) ===
+// === Active Loads (In Delivery and Delivered) ===
 export const activeLoads = async (req, res) => {
   try {
     const driverId = req.driver._id
+    console.log('🔍 Fetching active loads for driver:', driverId);
 
     const loads = await Load.aggregate([
-      { $match: { "details.driver": driverId, status: "in-delivery" } },
+      { $match: { "details.driver": driverId, status: { $in: ["in-delivery", "delivered"] } } },
       {
         $lookup: {
           from: "users",
@@ -471,7 +490,16 @@ export const activeLoads = async (req, res) => {
           as: "driver"
         }
       },
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "details.vehicle",
+          foreignField: "_id",
+          as: "vehicle"
+        }
+      },
       { $unwind: { path: "$customer", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$vehicle", preserveNullAndEmptyArrays: true } },
       {
         $project: {
           _id:1,
@@ -489,14 +517,22 @@ export const activeLoads = async (req, res) => {
           requiredProof: "$details.requiredProof",
           notes: 1,
           documents: 1,
-          customer: { name: "$customer.name", email: "$customer.email" }
+          customer: { name: "$customer.name", email: "$customer.email" },
+          vehicle: {
+            _id: "$vehicle._id",
+            internalId: "$vehicle.internalId",
+            plateNumber: "$vehicle.plateNumber",
+            make: "$vehicle.make",
+            model: "$vehicle.model"
+          }
         }
       }
     ])
 
+    console.log(`✅ Found ${loads.length} active loads for driver ${driverId}`);
     return res.status(200).json({ success: true, count: loads.length, loads })
   } catch (error) {
-    console.error(error)
+    console.error('❌ Error fetching active loads:', error);
     return res.status(500).json({ success: false, message: "Server error" })
   }
 }
@@ -505,6 +541,7 @@ export const activeLoads = async (req, res) => {
 export const pendingLoads = async (req, res) => {
   try {
     const driverId = req.driver._id
+    console.log('🔍 Fetching pending loads for driver:', driverId);
 
     const loads = await Load.aggregate([
       { $match: { "details.driver": driverId, status: { $in: ["planned", "dispatched"] } } }, // planned or dispatched loads
@@ -547,8 +584,10 @@ export const pendingLoads = async (req, res) => {
       }
     ])
 
+    console.log(`✅ Found ${loads.length} pending loads for driver ${driverId}`);
     return res.status(200).json({ success: true, count: loads.length, loads })
   } catch (error) {
+    console.error('❌ Error fetching pending loads:', error);
     return res.status(500).json({ success: false, message: "Server error" })
   }
 }
@@ -581,6 +620,7 @@ export const startedLoads = async (req, res) => {
 export const deliveredLoads = async (req, res) => {
   try {
     const driverId = req.driver._id
+    console.log('🔍 Fetching completed loads for driver:', driverId);
 
     const loads = await Load.aggregate([
       { $match: { "details.driver": driverId, status: "completed" } },
@@ -623,8 +663,10 @@ export const deliveredLoads = async (req, res) => {
       }
     ])
 
+    console.log(`✅ Found ${loads.length} completed loads for driver ${driverId}`);
     return res.status(200).json({ success: true, count: loads.length, loads })
   } catch (error) {
+    console.error('❌ Error fetching completed loads:', error);
     return res.status(500).json({ success: false, message: "Server error" })
   }
 }

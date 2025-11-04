@@ -14,6 +14,11 @@ const PORT = config.PORT;
 
 connectDB();
 
-server.listen(PORT, () => {
-  console.log(`Server connected on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server connected on http://0.0.0.0:${PORT}`);
+  console.log(`✅ Server accessible on http://localhost:${PORT}`);
+  console.log(`🔌 Socket.IO server available at http://0.0.0.0:${PORT}`);
+  console.log(`🔌 Socket.IO endpoint: http://0.0.0.0:${PORT}/socket.io/`);
+  console.log(`📱 Mobile devices can connect using: http://<YOUR_IP>:${PORT}`);
+  console.log(`   Replace <YOUR_IP> with your machine's IP (e.g., 192.168.31.161)`);
 });

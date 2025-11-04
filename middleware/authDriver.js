@@ -20,7 +20,8 @@ export const driverAuth = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Driver not found" });
     }
 
-    req.user = driver; // attach driver to request
+    req.user = driver; // attach driver to request (for compatibility)
+    req.driver = driver; // attach driver to request (for load controllers)
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: "Unauthorized" });

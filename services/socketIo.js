@@ -10,56 +10,126 @@ export const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
-    }
+      methods: ["GET", "POST"],
+      credentials: true,
+      allowedHeaders: ["*"],
+    },
+    transports: ['polling', 'websocket'], // Polling first for better compatibility, then upgrade to websocket
+    allowEIO3: true, // Allow Engine.IO v3 clients
+    pingTimeout: 60000, // 60 seconds
+    pingInterval: 25000, // 25 seconds
+    upgradeTimeout: 10000, // 10 seconds
+    maxHttpBufferSize: 1e8, // 100 MB
+    // Add path for socket.io
+    path: '/socket.io/',
   });
 
-  io.on("connection",async (socket) => {
-    console.log("Client connected:", socket.id);
+  console.log('🔌 Socket.IO server initialized and listening for connections');
+  console.log('🔌 Socket.IO transports:', ['polling', 'websocket']);
+  console.log('🔌 Socket.IO path: /socket.io/');
+  console.log('🔌 CORS enabled for all origins');
+  
+  // Log when server is ready
+  io.engine.on("connection_error", (err) => {
+    console.error("❌ Socket.IO connection error:", err);
+    console.error("   Error details:", {
+      type: err.type,
+      description: err.description,
+      context: err.context
+    });
+    console.error("   Common causes:");
+    console.error("   - Client and server on different networks");
+    console.error("   - Firewall blocking port 3000");
+    console.error("   - Incorrect socket URL in mobile app");
+  });
+
+  // Log transport upgrade
+  io.engine.on("upgrade", (socket) => {
+    console.log(`✅ Socket ${socket.id} upgraded transport`);
+  });
+
+  // Track connected clients
+  let connectedClients = 0;
+
+  io.on("connection", async (socket) => {
+    connectedClients++;
+    console.log(`✅ Client connected: ${socket.id}`);
+    console.log(`📊 Total connected clients: ${connectedClients}`);
+    console.log(`📡 Client transport: ${socket.conn.transport.name}`);
+    console.log(`🌐 Client address: ${socket.handshake.address}`);
+    
     let intervalId = null;
     let selectedVehicleId = null;
     let selectedTrailerId = null;
 
     // Join vehicle and start updates every 3 seconds
-   socket.on("joinVehicle", async (vehicleId) => {
-  selectedVehicleId = vehicleId;
-  selectedTrailerId = null; // Clear trailer selection
-  console.log('vehicle iddd========', vehicleId);
+    socket.on("joinVehicle", async (vehicleId) => {
+      selectedVehicleId = vehicleId;
+      selectedTrailerId = null; // Clear trailer selection
+      console.log(`🚗 Client ${socket.id} joined vehicle room: ${vehicleId}`);
 
-  // Clear old interval if any
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
-
-  intervalId = setInterval(async () => {
-    if (!selectedVehicleId) return;
-
-    try {
-      const vehicle = await updateVehicleById(selectedVehicleId);
-
-      if (!vehicle) {
-        // Vehicle not found, stop updates
+      // Clear old interval if any
+      if (intervalId) {
         clearInterval(intervalId);
         intervalId = null;
-        console.log(`Vehicle ${selectedVehicleId} not found, stopping updates.`);
-        return;
       }
 
-      socket.emit("vehicleLocation", vehicle);
+      // Send initial vehicle location immediately
+      try {
+        const initialVehicle = await updateVehicleById(selectedVehicleId);
+        if (initialVehicle) {
+          socket.emit("vehicleLocation", initialVehicle);
+        }
+      } catch (err) {
+        console.error(`❌ Error fetching initial vehicle location:`, err.message);
+        // Try to get from DB using internalId
+        try {
+          const vehicle = await Vehicle.findOne({ internalId: selectedVehicleId }).populate("driver");
+          if (vehicle) {
+            socket.emit("vehicleLocation", vehicle);
+          } else {
+            console.warn(`⚠️ Vehicle not found in DB with internalId: ${selectedVehicleId}`);
+          }
+        } catch (dbErr) {
+          console.error(`❌ Error fetching vehicle from DB:`, dbErr.message);
+        }
+      }
 
-    } catch (err) {
-      // On error, send last known vehicle if exists
-      const vehicle = await Vehicle.findOne({ _id: selectedVehicleId }).populate("driver");
-      if (vehicle) socket.emit("vehicleLocation", vehicle);
+      // Start interval for regular updates every 3 seconds
+      intervalId = setInterval(async () => {
+        if (!selectedVehicleId) return;
 
-      // Stop interval to prevent continuous errors
-      clearInterval(intervalId);
-      intervalId = null;
-      console.error(`Error updating vehicle ${selectedVehicleId}:`, err.message);
-    }
-  }, 3000);
-});
+        try {
+          const vehicle = await updateVehicleById(selectedVehicleId);
+
+          if (!vehicle) {
+            // Vehicle not found, stop updates
+            clearInterval(intervalId);
+            intervalId = null;
+            console.log(`⚠️ Vehicle ${selectedVehicleId} not found, stopping updates.`);
+            return;
+          }
+
+          socket.emit("vehicleLocation", vehicle);
+
+        } catch (err) {
+          // On error, send last known vehicle if exists
+          try {
+            const vehicle = await Vehicle.findOne({ internalId: selectedVehicleId }).populate("driver");
+            if (vehicle) {
+              socket.emit("vehicleLocation", vehicle);
+            }
+          } catch (dbErr) {
+            console.error(`❌ Error fetching vehicle from DB:`, dbErr.message);
+          }
+
+          // Stop interval to prevent continuous errors
+          clearInterval(intervalId);
+          intervalId = null;
+          console.error(`❌ Error updating vehicle ${selectedVehicleId}:`, err.message);
+        }
+      }, 3000);
+    });
 
     // Join trailer and start updates every 3 seconds
     socket.on("joinTrailer", async (trailerId) => {
@@ -204,8 +274,9 @@ export const initSocket = (server) => {
     });
 
     socket.on("disconnect", () => {
-      console.log("Client disconnected:", socket.id);
-      console.log("Client disconnected:", socket.id);
+      connectedClients--;
+      console.log(`❌ Client disconnected: ${socket.id}`);
+      console.log(`📊 Total connected clients: ${connectedClients}`);
       if (intervalId) clearInterval(intervalId);
     });
   });
