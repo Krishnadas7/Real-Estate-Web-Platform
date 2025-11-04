@@ -78,6 +78,35 @@ export const createEmployeeDocument = async (req, res) => {
             });
         }
 
+        // ✅ Auto-determine status based on expiry date
+        let autoStatus = status || 'valid'; // Default to provided status or 'valid'
+        if (expiryDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+            
+            const expiry = new Date(expiryDate);
+            expiry.setHours(0, 0, 0, 0);
+            
+            const thirtyDaysFromNow = new Date();
+            thirtyDaysFromNow.setDate(today.getDate() + 30);
+            thirtyDaysFromNow.setHours(0, 0, 0, 0);
+            
+            // Auto-determine status based on expiry date
+            if (expiry < today) {
+                // Expiry date is in the past → expired
+                autoStatus = 'expired';
+                console.log('📅 Expiry date is in the past - setting status to "expired"');
+            } else if (expiry <= thirtyDaysFromNow) {
+                // Expiry date is within 30 days → expiring soon
+                autoStatus = 'expiring-soon';
+                console.log('📅 Expiry date is within 30 days - setting status to "expiring-soon"');
+            } else {
+                // Expiry date is more than 30 days away → valid
+                autoStatus = 'valid';
+                console.log('📅 Expiry date is more than 30 days away - setting status to "valid"');
+            }
+        }
+
         const documentData = {
             employee,
             documentType,
@@ -85,7 +114,7 @@ export const createEmployeeDocument = async (req, res) => {
             issueDate: issueDate ? new Date(issueDate) : null,
             expiryDate: expiryDate ? new Date(expiryDate) : null,
             description,
-            status,
+            status: autoStatus, // Use auto-determined status
             uploadedBy: req.user._id,
             company: req.user.company,
             // ✅ Include file metadata from upload
@@ -392,7 +421,37 @@ export const updateEmployeeDocument = async (req, res) => {
         if (issueDate) updateData.issueDate = new Date(issueDate);
         if (expiryDate) updateData.expiryDate = new Date(expiryDate);
         if (description !== undefined) updateData.description = description;
-        if (status) updateData.status = status;
+        
+        // ✅ Auto-update status based on expiry date if expiry date is being updated
+        if (expiryDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+            
+            const expiry = new Date(expiryDate);
+            expiry.setHours(0, 0, 0, 0);
+            
+            const thirtyDaysFromNow = new Date();
+            thirtyDaysFromNow.setDate(today.getDate() + 30);
+            thirtyDaysFromNow.setHours(0, 0, 0, 0);
+            
+            // Auto-determine status based on expiry date
+            if (expiry < today) {
+                // Expiry date is in the past → expired
+                updateData.status = 'expired';
+                console.log('📅 Expiry date is in the past - setting status to "expired"');
+            } else if (expiry <= thirtyDaysFromNow) {
+                // Expiry date is within 30 days → expiring soon
+                updateData.status = 'expiring-soon';
+                console.log('📅 Expiry date is within 30 days - setting status to "expiring-soon"');
+            } else {
+                // Expiry date is more than 30 days away → valid
+                updateData.status = 'valid';
+                console.log('📅 Expiry date is more than 30 days away - setting status to "valid"');
+            }
+        } else if (status) {
+            // If expiry date is not being updated but status is provided, use provided status
+            updateData.status = status;
+        }
         
         // ✅ Include file metadata if new file is uploaded
         if (Object.keys(fileMetadata).length > 0) {
@@ -624,9 +683,9 @@ export const getExpiringDocuments = async (req, res) => {
     try {
         const { days = 30 } = req.query;
         console.log(`🔄 Fetching documents expiring within ${days} days`);
-
-        // First update document statuses
-        await updateDocumentStatuses();
+        
+        // Don't call updateDocumentStatuses here - it's already called by the scheduled job
+        // This was causing unnecessary API calls and 404 errors
 
         const futureDate = new Date();
         futureDate.setDate(futureDate.getDate() + parseInt(days));

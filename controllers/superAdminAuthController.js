@@ -58,6 +58,20 @@ export const loginSuperAdmin = async (req, res) => {
         .json({ success: false, message: "Invalid email or password" });
     }
 
+    // Verify user is actually a superadmin
+    if (superAdmin.role !== 'superadmin') {
+      return res
+        .status(403)
+        .json({ success: false, message: "Access denied. Super Admin access required." });
+    }
+
+    // Check if user is active
+    if (superAdmin.status !== 'active') {
+      return res
+        .status(403)
+        .json({ success: false, message: "Account is inactive. Please contact administrator." });
+    }
+
     const isMatch = await comparePassword(password, superAdmin.password);
     if (!isMatch) {
       return res

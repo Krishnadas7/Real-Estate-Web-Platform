@@ -35,9 +35,13 @@ export const upsertCompanySettings = async (req, res) => {
       { $set: data },
       { new: true, upsert: true }
     );
-    const admin = await User.findOne({_id:adminId})
-    admin.company = settings._id
-    await admin.save()
+    
+    // ✅ Update admin's company reference using updateOne to avoid full document validation
+    await User.updateOne(
+      { _id: adminId },
+      { $set: { company: settings._id } }
+    );
+    
     res.json({ success: true, data: settings });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
