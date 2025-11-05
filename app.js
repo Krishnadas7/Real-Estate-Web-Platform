@@ -170,7 +170,7 @@ app.put("/api/v1/auth/me", authMiddleware, updateCurrentUserProfile);
 app.put("/api/v1/auth/change-password", authMiddleware, changePassword);
 
 // ✅ Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+app.use('/api/v1/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
   explorer: true,
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: "BlackRiver Fleet Management API"

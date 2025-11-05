@@ -157,3 +157,4 @@ After setting up, test by:
 - **Events not processed**: Check backend logs for errors
 - **Local testing issues**: Use Stripe CLI or ngrok for local development
 
+
