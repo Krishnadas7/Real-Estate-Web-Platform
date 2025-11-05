@@ -16,12 +16,30 @@ import {
   updatePlan,
   deletePlan
 } from '../controllers/planController.js'
+import { getSuperAdminDashboard } from '../controllers/superAdminDashboardController.js'
+import { getSuperAdminRevenue } from '../controllers/superAdminRevenueController.js'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { authorizeRoles } from '../middleware/authRoles.js'
 export const superAdminRoute = express.Router()
 
 superAdminRoute.post('/login', loginSuperAdmin)
 superAdminRoute.post('/create', registerSuperAdmin)
+
+// Dashboard
+superAdminRoute.get(
+  '/dashboard',
+  authMiddleware,
+  authorizeRoles('superadmin'),
+  getSuperAdminDashboard
+)
+
+// Revenue
+superAdminRoute.get(
+  '/revenue',
+  authMiddleware,
+  authorizeRoles('superadmin'),
+  getSuperAdminRevenue
+)
 
 //admin management
 superAdminRoute.post(
